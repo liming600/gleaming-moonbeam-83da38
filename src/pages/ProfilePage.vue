@@ -159,6 +159,11 @@ const handleLogout = () => {
   padding-bottom: 24px;
 }
 
+/* 顶部内容与下方 section 边距保持一致 */
+.user-header .page-content {
+  padding: 0 32px;
+}
+
 .header-bg {
   position: absolute;
   top: 0;
@@ -278,27 +283,32 @@ const handleLogout = () => {
 
 .guest-header {
   background: linear-gradient(135deg, #F97316, #FB923C);
-  padding: 60px 20px;
+  padding: 32px 0 28px;
   text-align: center;
-  border-radius: 0 0 40px 40px;
+  border-radius: 0 0 24px 24px;
+}
+
+/* 游客头部取消 page-content 的 padding，避免双重边距 */
+.guest-header .page-content {
+  padding: 0;
 }
 
 .guest-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 48px;
+  margin-bottom: 10px;
 }
 
 .guest-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .guest-desc {
-  font-size: 15px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .login-btn {
@@ -390,6 +400,7 @@ const handleLogout = () => {
 .menu-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   padding: 16px 0;
   border-bottom: 1px solid #F5F5F4;
@@ -398,6 +409,7 @@ const handleLogout = () => {
   border-bottom: 1px solid #F5F5F4;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
 }
 
 .menu-item:last-child {

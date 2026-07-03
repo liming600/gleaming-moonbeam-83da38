@@ -109,7 +109,6 @@ const closeTipModal = () => {
           <span class="zone-label">{{ zone.label }}</span>
         </button>
       </div>
-
       <div class="help-list">
       <div
         v-for="post in helpStore.filteredPosts"
@@ -276,20 +275,20 @@ const closeTipModal = () => {
 }
 
 .zone-tabs {
-  display: flex;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   padding: 0 16px;
   margin-bottom: 16px;
-  white-space: nowrap;
 }
 
 .zone-tab {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border-radius: 20px;
+  gap: 4px;
+  padding: 12px 4px;
+  border-radius: 16px;
   border: none;
   background: #fff;
   color: #57534E;
@@ -307,7 +306,11 @@ const closeTipModal = () => {
 }
 
 .zone-icon {
-  font-size: 16px;
+  font-size: 22px;
+}
+
+.zone-label {
+  font-size: 12px;
 }
 
 .help-list {

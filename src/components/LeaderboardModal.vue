@@ -57,15 +57,6 @@ const goToUserProfile = (_userId: string) => {
           </button>
         </div>
 
-        <div class="stats-header">
-          <div class="stat-item">
-            <span class="stat-label">回答数</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">采纳数</span>
-          </div>
-        </div>
-
         <div class="leaderboard-list">
           <div
             v-for="(user, index) in leaderboard"
@@ -170,24 +161,6 @@ const goToUserProfile = (_userId: string) => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-}
-
-.stats-header {
-  display: flex;
-  padding: 12px 20px;
-  background: #F0FDF4;
-  border-bottom: 1px solid #D1FAE5;
-}
-
-.stat-item {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #059669;
 }
 
 .leaderboard-list {

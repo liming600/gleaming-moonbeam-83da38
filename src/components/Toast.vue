@@ -4,27 +4,12 @@ import { useUiStore } from '@/stores/uiStore'
 
 const uiStore = useUiStore()
 
+// 提示类型配置：白底黑字，用彩色图标区分类型
 const typeConfig = {
-  success: {
-    icon: CheckCircle,
-    bg: 'bg-gradient(135deg, #34D399, #6EE7B7)',
-    iconColor: '#059669'
-  },
-  error: {
-    icon: XCircle,
-    bg: 'bg-gradient(135deg, #EF4444, #F87171)',
-    iconColor: '#DC2626'
-  },
-  warning: {
-    icon: AlertTriangle,
-    bg: 'bg-gradient(135deg, #FBBF24, #FCD34D)',
-    iconColor: '#D97706'
-  },
-  info: {
-    icon: Info,
-    bg: 'bg-gradient(135deg, #3B82F6, #60A5FA)',
-    iconColor: '#2563EB'
-  }
+  success: { icon: CheckCircle, color: '#10B981' },
+  error:   { icon: XCircle,     color: '#EF4444' },
+  warning: { icon: AlertTriangle, color: '#F59E0B' },
+  info:    { icon: Info,        color: '#3B82F6' }
 }
 </script>
 
@@ -34,14 +19,11 @@ const typeConfig = {
       v-if="uiStore.toastVisible"
       class="toast-container"
     >
-      <div
-        class="toast-wrapper"
-        :class="[typeConfig[uiStore.toastType].bg]"
-      >
+      <div class="toast-wrapper">
         <component
           :is="typeConfig[uiStore.toastType].icon"
-          :size="20"
-          :style="{ color: typeConfig[uiStore.toastType].iconColor }"
+          :size="22"
+          :style="{ color: typeConfig[uiStore.toastType].color }"
         />
         <span class="toast-message">{{ uiStore.toastMessage }}</span>
       </div>
@@ -55,23 +37,28 @@ const typeConfig = {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1000;
+  z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
+  pointer-events: none;
 }
 
+/* 白底黑字样式 */
 .toast-wrapper {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 14px 24px;
-  border-radius: 24px;
-  color: #fff;
+  border-radius: 16px;
+  background: #FFFFFF;
+  color: #1F2937;
   font-size: 15px;
   font-weight: 500;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  opacity: 1 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
   min-width: 200px;
+  max-width: 80vw;
   justify-content: center;
 }
 
@@ -79,7 +66,10 @@ const typeConfig = {
   line-height: 1.4;
 }
 
-.toast-enter-active,
+.toast-enter-active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 .toast-leave-active {
   transition: all 0.3s ease;
 }
@@ -91,6 +81,6 @@ const typeConfig = {
 
 .toast-leave-to {
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.8);
+  transform: translate(-50%, -50%) scale(0.9);
 }
 </style>

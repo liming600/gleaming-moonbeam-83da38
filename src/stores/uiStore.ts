@@ -20,6 +20,8 @@ export const useUiStore = defineStore('ui', () => {
   const toastMessage = ref('')
   const toastType = ref<'success' | 'error' | 'warning' | 'info'>('info')
   const toastDuration = ref(2000)
+  // 保存定时器引用，避免连续触发时前一个定时器提前关闭后一个提示
+  let toastTimer: ReturnType<typeof setTimeout> | null = null
 
   const dialogVisible = ref(false)
   const dialogTitle = ref('')
@@ -33,13 +35,19 @@ export const useUiStore = defineStore('ui', () => {
   const loadingText = ref('加载中...')
 
   const showToast = (options: ToastOptions) => {
+    // 清除前一个定时器，避免连续触发时提前关闭
+    if (toastTimer) {
+      clearTimeout(toastTimer)
+      toastTimer = null
+    }
     toastMessage.value = options.message
     toastType.value = options.type || 'info'
     toastDuration.value = options.duration || 2000
     toastVisible.value = true
 
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       toastVisible.value = false
+      toastTimer = null
     }, toastDuration.value)
   }
 

@@ -20,12 +20,6 @@ const handleLogin = async () => {
     return
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(email.value)) {
-    uiStore.showWarningToast('请输入有效的邮箱地址')
-    return
-  }
-
   if (!password.value.trim()) {
     uiStore.showWarningToast('请输入密码')
     return
@@ -33,11 +27,20 @@ const handleLogin = async () => {
 
   isLoading.value = true
 
+  // 演示账号登录：跳过邮箱格式验证，直接使用 demo / 123456
   if (email.value === 'demo' && password.value === '123456') {
     userStore.useDemoUser()
     isLoading.value = false
     uiStore.showSuccessToast('登录成功')
     router.push('/')
+    return
+  }
+
+  // 正常登录：验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    uiStore.showWarningToast('请输入有效的邮箱地址')
+    isLoading.value = false
     return
   }
 

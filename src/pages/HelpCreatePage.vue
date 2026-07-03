@@ -19,7 +19,7 @@ const zones: Array<{ key: 'experience' | 'question' | 'rescue' | 'mutual', label
   { key: 'experience', label: '经验', icon: '📚', desc: '分享养宠经验', color: '#F97316' },
   { key: 'question', label: '问答', icon: '❓', desc: '提出养宠疑问', color: '#3B82F6' },
   { key: 'rescue', label: '救助', icon: '🚑', desc: '发布救助信息', color: '#EF4444' },
-  { key: 'mutual', label: '互帮', icon: '🤝', desc: '互助借物拼车', color: '#22C55E' }
+  { key: 'mutual', label: '互帮', icon: '🤝', desc: '代遛代喂临时照看', color: '#22C55E' }
 ]
 
 const back = () => {
