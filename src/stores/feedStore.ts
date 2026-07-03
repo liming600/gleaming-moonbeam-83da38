@@ -108,6 +108,74 @@ export const useFeedStore = defineStore('feed', () => {
     return dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]
   }
 
+  const petTips = [
+    {
+      title: '猫咪呕吐的几种常见原因及应对方法',
+      content: '猫咪偶尔呕吐是正常的，但如果频率较高就需要注意了。常见原因包括：1）毛球症：定期梳毛和喂食化毛膏可以预防；2）饮食过快：使用慢食碗；3）食物不新鲜或过敏；4）肠胃疾病：持续呕吐需就医。',
+      category: '🐱 猫咪养护',
+      tags: ['猫咪', '健康', '呕吐']
+    },
+    {
+      title: '狗狗洗澡的正确频率和注意事项',
+      content: '狗狗洗澡频率取决于品种和活动量：短毛犬1-2周一次，长毛犬1周一次。注意事项：1）使用专用宠物沐浴露；2）水温控制在38-40°C；3）避免水进入耳朵和眼睛；4）洗完彻底吹干。',
+      category: '🐶 狗狗养护',
+      tags: ['狗狗', '洗澡', '护理']
+    },
+    {
+      title: '如何帮助宠物度过炎热夏季',
+      content: '夏季高温对宠物是巨大挑战。防暑要点：1）保证充足饮水；2）避免正午外出；3）提供阴凉休息处；4）不要将宠物单独留在车内；5）注意修剪毛发但不要剃光；6）警惕中暑症状。',
+      category: '☀️ 季节护理',
+      tags: ['防暑', '夏季', '健康']
+    },
+    {
+      title: '宠物口腔护理的重要性和方法',
+      content: '口腔问题是宠物常见疾病。护理方法：1）定期刷牙（每周2-3次）；2）提供洁牙零食和玩具；3）定期检查口腔；4）牙结石严重时需专业洗牙。',
+      category: '🦷 口腔健康',
+      tags: ['口腔', '护理', '牙齿']
+    },
+    {
+      title: '正确的宠物营养配比和喂食原则',
+      content: '宠物饮食需遵循：1）选择优质主粮；2）不要喂食人类食物（巧克力、洋葱等有毒）；3）控制零食量；4）定时定量喂食；5）根据年龄和体重调整食量；6）保证新鲜饮水。',
+      category: '🍖 营养饮食',
+      tags: ['饮食', '营养', '喂食']
+    },
+    {
+      title: '猫咪应激反应的识别和缓解',
+      content: '猫咪敏感，环境变化容易应激。表现：躲起来、食欲下降、过度舔毛。缓解方法：1）提供安全空间；2）保持环境稳定；3）使用信息素喷雾；4）耐心安抚，不要强迫互动。',
+      category: '🐱 猫咪养护',
+      tags: ['猫咪', '应激', '心理']
+    },
+    {
+      title: '宠物疫苗接种时间表和注意事项',
+      content: '疫苗是保护宠物健康的关键。幼宠首次免疫：8周开始，间隔3-4周，共3针猫/狗四联+1针狂犬。成年后每年加强。接种前后一周避免洗澡和外出。',
+      category: '💉 疫苗接种',
+      tags: ['疫苗', '健康', '免疫']
+    },
+    {
+      title: '如何正确训练狗狗定点大小便',
+      content: '定点训练关键：1）规律作息，定时带出门；2）选择固定地点；3）成功后及时奖励；4）耐心引导，不要打骂；5）准备尿垫备用；6）循序渐进，一般1-2周可学会。',
+      category: '🐶 狗狗训练',
+      tags: ['狗狗', '训练', '定点']
+    },
+    {
+      title: '宠物毛发护理的常见误区',
+      content: '错误护理会伤害宠物：1）频繁洗澡破坏皮肤屏障；2）用人用梳子伤害毛发；3）吹干不彻底导致皮肤病；4）忽视换毛期护理；5）剪毛过短损伤毛囊。',
+      category: '✂️ 毛发护理',
+      tags: ['毛发', '护理', '误区']
+    },
+    {
+      title: '老年宠物的特殊照顾要点',
+      content: '老年宠物需要更多关爱：1）定期体检，关注器官功能；2）提供易消化的老年粮；3）适当运动但避免过度；4）温暖舒适的休息环境；5）关注牙齿和关节健康；6）多陪伴。',
+      category: '👴 老年护理',
+      tags: ['老年', '护理', '健康']
+    }
+  ]
+
+  const getDailyPetTip = () => {
+    const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))
+    return petTips[dayOfYear % petTips.length]
+  }
+
   const loadPosts = async (page: number = 1, reset: boolean = false) => {
     isLoading.value = true
     const userStore = useUserStore()
@@ -321,6 +389,7 @@ export const useFeedStore = defineStore('feed', () => {
     checkLike,
     setTab,
     getDailyQuote,
+    getDailyPetTip,
     loadPosts,
     loadPostsByPet,
     loadPostById,
