@@ -1,0 +1,242 @@
+@import '@/theme/tokens.scss';
+
+page {
+  background-color: $color-background;
+  font-family: $font-family;
+  font-size: $font-size-base;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  min-height: 100vh;
+  background-color: $color-background;
+}
+
+.page-content {
+  padding: 0 16px;
+}
+
+.container {
+  padding: $spacing-md;
+}
+
+.card {
+  background: $color-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  padding: $spacing-md;
+  transition: box-shadow $transition-normal;
+
+  &:active {
+    box-shadow: $shadow-card-hover;
+  }
+}
+
+.btn-primary {
+  background: $gradient-primary;
+  color: #fff;
+  border: none;
+  border-radius: $radius-full;
+  height: 48px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  box-shadow: $shadow-button;
+  transition: all $transition-normal;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: $shadow-button-press;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-outline {
+  background: transparent;
+  color: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $radius-full;
+  height: 48px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  transition: all $transition-normal;
+
+  &:active {
+    background: rgba($color-primary, 0.1);
+  }
+}
+
+.text-gradient {
+  background: $gradient-primary;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.avatar-gradient {
+  border: 4px solid transparent;
+  background: linear-gradient(#fff, #fff) padding-box,
+              $gradient-primary border-box;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba($color-primary, 0.1);
+  color: $color-primary;
+  border-radius: $radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes checkInPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.5s ease forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.3s ease-in-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-checkin-pop {
+  animation: checkInPop 0.4s ease;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba($color-border, 0.3) 25%,
+    rgba($color-border, 0.6) 50%,
+    rgba($color-border, 0.3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: $radius-sm;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+@media screen and (max-width: 375px) {
+  :root {
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (hover: hover) {
+  button:hover {
+    opacity: 0.9;
+  }
+}
