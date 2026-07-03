@@ -208,12 +208,12 @@ const goToPetProfile = (petId: string) => {
 }
 
 .user-header {
-  padding-top: 60px;
+  padding-top: 50px;
 }
 
 .cover-image {
   width: 100%;
-  height: 180px;
+  height: 140px;
   overflow: hidden;
 }
 
@@ -227,7 +227,7 @@ const goToPetProfile = (petId: string) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: -50px;
+  margin-top: -40px;
   position: relative;
 }
 

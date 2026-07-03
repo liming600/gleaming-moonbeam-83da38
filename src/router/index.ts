@@ -91,6 +91,12 @@ const routes: RouteRecordRaw[] = [
     name: 'UserProfile',
     component: () => import('@/pages/UserProfilePage.vue'),
     meta: { showTabBar: false }
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/pages/SettingsPage.vue'),
+    meta: { showTabBar: false }
   }
 ]
 

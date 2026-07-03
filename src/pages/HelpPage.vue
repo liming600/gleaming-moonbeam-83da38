@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { MessageCircleQuestion, Trophy } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { MessageCircleQuestion, Trophy, Sparkles } from 'lucide-vue-next'
 import { useHelpStore } from '@/stores/helpStore'
 import { useRouter } from 'vue-router'
+import { useFeedStore } from '@/stores/feedStore'
 import LeaderboardModal from '@/components/LeaderboardModal.vue'
 
 const helpStore = useHelpStore()
+const feedStore = useFeedStore()
 const router = useRouter()
 const showLeaderboardModal = ref(false)
+const dailyQuote = ref('')
+
+onMounted(() => {
+  setTimeout(() => {
+    dailyQuote.value = feedStore.getDailyQuote()
+  }, 300)
+})
 
 const zones = [
   { key: 'all', label: '全部', icon: '📋' },
@@ -55,10 +64,10 @@ const closeLeaderboard = () => {
 <template>
   <div class="help-page">
     <header class="header">
-      <div class="page-content">
-        <div class="header-left">
-          <div class="header-icon">💬</div>
-          <h1 class="header-title">互助大厅</h1>
+      <div class="page-content header-content">
+        <div class="logo-area">
+          <div class="logo-icon">💬</div>
+          <span class="logo-text">互助大厅</span>
         </div>
         <button class="leaderboard-btn" @click="openLeaderboard">
           <Trophy :size="20" />
@@ -68,6 +77,20 @@ const closeLeaderboard = () => {
     </header>
 
     <div class="page-content">
+      <div class="daily-quote-card">
+        <div class="quote-content">
+          <Sparkles :size="20" class="quote-icon" />
+          <p class="quote-text">{{ dailyQuote }}</p>
+        </div>
+        <div class="quote-animals">
+          <span class="animal-emoji">🐱</span>
+          <span class="animal-emoji">🐶</span>
+          <span class="animal-emoji">🐰</span>
+          <span class="animal-emoji">🐹</span>
+          <span class="animal-emoji">🦜</span>
+        </div>
+      </div>
+
       <div class="zone-tabs">
         <button
           v-for="zone in zones"
@@ -143,27 +166,37 @@ const closeLeaderboard = () => {
 }
 
 .header {
-  padding: 20px 0;
-  background: linear-gradient(135deg, #F97316, #FB923C);
-  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 249, 245, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(249, 115, 22, 0.1);
+}
+
+.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.header-left {
+.logo-area {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.header-icon {
+.logo-icon {
   font-size: 28px;
 }
 
-.header-title {
-  font-size: 22px;
+.logo-text {
+  font-size: 20px;
   font-weight: 700;
+  background: linear-gradient(135deg, #F97316, #FB923C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .leaderboard-btn {
@@ -171,28 +204,70 @@ const closeLeaderboard = () => {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #F97316, #FB923C);
   color: #fff;
   border: none;
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
   transition: all 0.2s ease;
 }
 
 .leaderboard-btn:active {
-  background: rgba(255, 255, 255, 0.3);
   transform: scale(0.98);
 }
+
+.daily-quote-card {
+  margin: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #F97316, #FB923C);
+  border-radius: 20px;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+}
+
+.quote-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.quote-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.quote-text {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.quote-animals {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.animal-emoji {
+  font-size: 24px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.animal-emoji:nth-child(2) { animation-delay: 0.2s; }
+.animal-emoji:nth-child(3) { animation-delay: 0.4s; }
+.animal-emoji:nth-child(4) { animation-delay: 0.6s; }
+.animal-emoji:nth-child(5) { animation-delay: 0.8s; }
 
 .zone-tabs {
   display: flex;
   overflow-x: auto;
   gap: 8px;
-  padding: 16px;
-  background: #fff;
+  padding: 0 16px;
+  margin-bottom: 16px;
   white-space: nowrap;
 }
 
@@ -203,12 +278,13 @@ const closeLeaderboard = () => {
   padding: 10px 16px;
   border-radius: 20px;
   border: none;
-  background: #F5F5F4;
+  background: #fff;
   color: #57534E;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .zone-tab.active {
@@ -222,7 +298,7 @@ const closeLeaderboard = () => {
 }
 
 .help-list {
-  padding: 16px;
+  padding: 0 16px;
 }
 
 .help-card {
@@ -382,13 +458,13 @@ const closeLeaderboard = () => {
   font-size: 14px;
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
 }
 </style>

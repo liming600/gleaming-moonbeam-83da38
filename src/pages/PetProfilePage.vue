@@ -107,7 +107,7 @@ const toggleFollow = () => {
   if (isFollowing.value) {
     uiStore.showSuccessToast('关注成功')
   } else {
-    uiStore.showSuccessToast('已取消关注')
+    uiStore.showInfoToast('已取消关注')
   }
 }
 
@@ -336,12 +336,12 @@ const tabs = [
 }
 
 .pet-header {
-  padding-top: 60px;
+  padding-top: 50px;
 }
 
 .cover-image {
   width: 100%;
-  height: 200px;
+  height: 150px;
   overflow: hidden;
 }
 
@@ -355,7 +355,7 @@ const tabs = [
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: -60px;
+  margin-top: -45px;
   position: relative;
 }
 

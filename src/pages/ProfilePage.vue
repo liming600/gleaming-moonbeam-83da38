@@ -45,7 +45,9 @@ const handleMenuClick = (action: string) => {
     goToLogin()
     return
   }
-  console.log('Menu action:', action)
+  if (action === 'settings') {
+    router.push('/settings')
+  }
 }
 
 const handleLogout = () => {
