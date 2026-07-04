@@ -103,6 +103,13 @@ export const useUserStore = defineStore('user', () => {
     currentUser.value = demoUser
   }
 
+  const updateUserAvatar = async (avatarUrl: string) => {
+    if (currentUser.value) {
+      currentUser.value = { ...currentUser.value, avatar_url: avatarUrl }
+      await authService.updateUserProfile({ id: currentUser.value.id, avatar_url: avatarUrl })
+    }
+  }
+
   const getCurrentUserId = computed(() => {
     return currentUser.value?.id || ''
   })
@@ -120,6 +127,7 @@ export const useUserStore = defineStore('user', () => {
     logout,
     autoLogin,
     useDemoUser,
+    updateUserAvatar,
     getCurrentUserId
   }
 }, {

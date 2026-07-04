@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ArrowLeft, Camera, Check, Search, X } from 'lucide-vue-next'
 import { useUiStore } from '@/stores/uiStore'
 import { useRouter, useRoute } from 'vue-router'
+import { storageService } from '@/services/storageService'
 
 const uiStore = useUiStore()
 const router = useRouter()
@@ -20,6 +21,7 @@ const petDescription = ref('')
 const breedSearch = ref('')
 const showBreedSelector = ref(false)
 const selectedCategory = ref('all')
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 const breedCategories = [
   {
@@ -116,6 +118,29 @@ const closeBreedSelector = () => {
 const clearBreed = () => {
   petBreed.value = ''
 }
+
+const handleAvatarUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uiStore.showLoading('上传中...')
+
+  try {
+    const tempPetId = `temp_${Date.now()}`
+    const result = await storageService.uploadPetAvatar(file, tempPetId)
+    if (result.url) {
+      petAvatar.value = result.url
+      uiStore.showSuccessToast('头像上传成功')
+    } else {
+      uiStore.showErrorToast('上传失败，请重试')
+    }
+  } catch (error) {
+    uiStore.showErrorToast('上传失败，请重试')
+  } finally {
+    target.value = ''
+  }
+}
 </script>
 
 <template>
@@ -132,7 +157,7 @@ const clearBreed = () => {
 
     <div class="content">
       <div class="avatar-section">
-        <div class="avatar-container">
+        <div class="avatar-container" @click="avatarInput?.click()">
           <img
             v-if="petAvatar"
             :src="petAvatar"
@@ -144,7 +169,8 @@ const clearBreed = () => {
             <span>上传头像</span>
           </div>
         </div>
-        <button class="upload-btn">
+        <input ref="avatarInput" type="file" accept="image/*" class="avatar-input" @change="handleAvatarUpload" />
+        <button class="upload-btn" @click="avatarInput?.click()">
           <Camera :size="16" />
           <span>更换头像</span>
         </button>
@@ -371,6 +397,10 @@ const clearBreed = () => {
   cursor: pointer;
 }
 
+.avatar-input {
+  display: none;
+}
+
 .form-section {
   background: #fff;
   border-radius: 20px;
@@ -511,6 +541,7 @@ const clearBreed = () => {
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #F5F5F4;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -540,6 +571,7 @@ const clearBreed = () => {
   padding: 12px 16px;
   background: #F5F5F4;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .search-icon {
@@ -562,22 +594,26 @@ const clearBreed = () => {
 .category-tabs {
   display: flex;
   gap: 8px;
-  padding: 0 16px;
+  padding: 0 16px 16px;
   overflow-x: auto;
-  margin-bottom: 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #F5F5F4;
 }
 
 .category-tab {
-  padding: 8px 16px;
+  padding: 10px 14px;
   background: #F5F5F4;
   color: #57534E;
   border: none;
-  border-radius: 20px;
+  border-radius: 14px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .category-tab.active {
@@ -588,8 +624,7 @@ const clearBreed = () => {
 .breed-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 16px;
-  margin-bottom: 16px;
+  padding: 16px;
 }
 
 .breed-group {

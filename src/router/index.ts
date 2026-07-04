@@ -97,6 +97,36 @@ const routes: RouteRecordRaw[] = [
     name: 'Settings',
     component: () => import('@/pages/SettingsPage.vue'),
     meta: { showTabBar: false }
+  },
+  {
+    path: '/posts',
+    name: 'UserPosts',
+    component: () => import('@/pages/UserPostsPage.vue'),
+    meta: { showTabBar: false }
+  },
+  {
+    path: '/posts/:id',
+    name: 'UserPostsById',
+    component: () => import('@/pages/UserPostsPage.vue'),
+    meta: { showTabBar: false }
+  },
+  {
+    path: '/followers',
+    name: 'Followers',
+    component: () => import('@/pages/FollowersPage.vue'),
+    meta: { showTabBar: false }
+  },
+  {
+    path: '/followers/:id',
+    name: 'FollowersById',
+    component: () => import('@/pages/FollowersPage.vue'),
+    meta: { showTabBar: false }
+  },
+  {
+    path: '/my-pets',
+    name: 'MyPets',
+    component: () => import('@/pages/MyPetsPage.vue'),
+    meta: { showTabBar: false }
   }
 ]
 

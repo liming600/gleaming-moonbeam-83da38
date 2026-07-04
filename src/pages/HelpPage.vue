@@ -114,7 +114,7 @@ const closeTipModal = () => {
         v-for="post in helpStore.filteredPosts"
         :key="post.id"
         class="help-card"
-        :class="{ urgent: post.isUrgent }"
+        :class="{ urgent: post.isUrgent && post.status !== 'resolved' }"
         @click="goToHelpDetail(post.id)"
       >
         <div class="help-header">
@@ -122,7 +122,7 @@ const closeTipModal = () => {
           <div class="author-info">
             <div class="author-row">
               <span class="author-name">{{ post.authorName }}</span>
-              <span v-if="post.isUrgent" class="urgent-tag">🔴 紧急</span>
+              <span v-if="post.isUrgent && post.status !== 'resolved'" class="urgent-tag">🔴 紧急</span>
             </div>
             <span class="post-time">{{ post.createdAt }}</span>
           </div>

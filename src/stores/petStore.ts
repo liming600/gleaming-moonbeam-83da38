@@ -197,6 +197,20 @@ export const usePetStore = defineStore('pet', () => {
     return { success: true, message: '删除成功' }
   }
 
+  const updatePetAvatar = async (petId: string, avatarUrl: string) => {
+    const petIndex = pets.value.findIndex(p => p.id === petId)
+    if (petIndex !== -1) {
+      pets.value[petIndex] = { ...pets.value[petIndex], avatar: avatarUrl }
+    }
+
+    const userPetIndex = userPets.value.findIndex(p => p.id === petId)
+    if (userPetIndex !== -1) {
+      userPets.value[userPetIndex] = { ...userPets.value[userPetIndex], avatar: avatarUrl }
+    }
+
+    await petService.updatePet(petId, { avatar_url: avatarUrl })
+  }
+
   return {
     pets,
     userPets,
@@ -209,7 +223,8 @@ export const usePetStore = defineStore('pet', () => {
     loadPetById,
     addPet,
     updatePet,
-    deletePet
+    deletePet,
+    updatePetAvatar
   }
 }, {
   persist: {

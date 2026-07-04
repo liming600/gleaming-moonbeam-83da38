@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, Camera } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
 import { useFeedStore } from '@/stores/feedStore'
 import { useUiStore } from '@/stores/uiStore'
+import { storageService } from '@/services/storageService'
 import PostCard from '@/components/PostCard.vue'
 
 const route = useRoute()
@@ -16,6 +17,7 @@ const uiStore = useUiStore()
 const activeTab = ref<'posts' | 'growth'>('posts')
 const isFollowing = ref(false)
 const petId = computed(() => route.params.id as string)
+const petAvatarInput = ref<HTMLInputElement | null>(null)
 
 const expandedItems = ref<Set<string>>(new Set())
 
@@ -125,6 +127,30 @@ const goToOwner = (ownerId: string) => {
   router.push(`/user/${ownerId}`)
 }
 
+const handlePetAvatarUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  if (!petId.value) return
+
+  uiStore.showLoading('上传中...')
+
+  try {
+    const result = await storageService.uploadPetAvatar(file, petId.value)
+      if (result.url) {
+        await petStore.updatePetAvatar(petId.value, result.url)
+        uiStore.showSuccessToast('头像更换成功')
+      } else {
+        uiStore.showErrorToast('上传失败，请重试')
+      }
+  } catch (error) {
+    uiStore.showErrorToast('上传失败，请重试')
+  } finally {
+    target.value = ''
+  }
+}
+
 const tabs = [
   { key: 'posts', label: '帖子' },
   { key: 'growth', label: '成长线' }
@@ -146,7 +172,13 @@ const tabs = [
         <img :src="pet.coverImage" :alt="pet.name" @error="handleImageError" />
       </div>
       <div class="avatar-container">
-        <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
+        <div class="pet-avatar-wrapper">
+          <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
+          <button class="change-pet-avatar-btn" @click="petAvatarInput?.click()">
+            <Camera :size="14" />
+          </button>
+        </div>
+        <input ref="petAvatarInput" type="file" accept="image/*" class="pet-avatar-input" @change="handlePetAvatarUpload" />
         <div class="pet-name">{{ pet.name }}</div>
         <div class="pet-info">
           <span>{{ pet.breed }}</span>
@@ -368,6 +400,36 @@ const tabs = [
   background: linear-gradient(#fff, #fff) padding-box,
               linear-gradient(135deg, #F97316, #FB923C) border-box;
   box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2);
+}
+
+.pet-avatar-wrapper {
+  position: relative;
+}
+
+.change-pet-avatar-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: linear-gradient(135deg, #F97316, #FB923C);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+  transition: all 0.2s ease;
+}
+
+.change-pet-avatar-btn:active {
+  transform: scale(0.9);
+}
+
+.pet-avatar-input {
+  display: none;
 }
 
 .pet-name {

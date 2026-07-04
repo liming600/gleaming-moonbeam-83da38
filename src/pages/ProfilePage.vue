@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Mail, Settings, LogOut, Plus } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Mail, Settings, LogOut, Camera } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { usePetStore } from '@/stores/petStore'
+import { useUiStore } from '@/stores/uiStore'
 import { useRouter } from 'vue-router'
+import { storageService } from '@/services/storageService'
 
 const userStore = useUserStore()
 const petStore = usePetStore()
+const uiStore = useUiStore()
 const router = useRouter()
+
+const isUploading = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 const menuItems = [
   { icon: Settings, label: '设置', action: 'settings' }
@@ -15,6 +21,18 @@ const menuItems = [
 
 const handleNotificationClick = () => {
   router.push('/messages')
+}
+
+const goToPosts = () => {
+  router.push('/posts')
+}
+
+const goToFollowers = () => {
+  router.push('/followers?type=followers')
+}
+
+const goToPets = () => {
+  router.push('/my-pets')
 }
 
 const user = computed(() => {
@@ -32,14 +50,6 @@ const goToLogin = () => {
   router.push('/login')
 }
 
-const goToPetProfile = (petId: string) => {
-  router.push(`/pet/${petId}`)
-}
-
-const addPet = () => {
-  router.push('/pet-create')
-}
-
 const handleMenuClick = (action: string) => {
   if (!userStore.isLoggedIn) {
     goToLogin()
@@ -53,6 +63,33 @@ const handleMenuClick = (action: string) => {
 const handleLogout = () => {
   userStore.logout()
 }
+
+const handleAvatarUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  const userId = userStore.currentUser?.id
+  if (!userId) return
+
+  isUploading.value = true
+  uiStore.showLoading('上传中...')
+
+  try {
+    const result = await storageService.uploadAvatar(file, userId)
+      if (result.url) {
+        await userStore.updateUserAvatar(result.url)
+        uiStore.showSuccessToast('头像更换成功')
+      } else {
+        uiStore.showErrorToast('上传失败，请重试')
+      }
+  } catch (error) {
+    uiStore.showErrorToast('上传失败，请重试')
+  } finally {
+    isUploading.value = false
+    target.value = ''
+  }
+}
 </script>
 
 <template>
@@ -65,25 +102,31 @@ const handleLogout = () => {
         </button>
         <div class="header-bg"></div>
         <div class="user-info">
-          <img :src="user.avatar_url || 'https://neeko-copilot.bytedance.net/api/text2image?prompt=pet%20lover%20avatar%20friendly&image_size=square'" :alt="user.name" class="user-avatar" />
+          <div class="avatar-wrapper">
+            <img :src="user.avatar_url || 'https://neeko-copilot.bytedance.net/api/text2image?prompt=pet%20lover%20avatar%20friendly&image_size=square'" :alt="user.name" class="user-avatar" />
+            <button class="change-avatar-btn" @click="avatarInput?.click()">
+              <Camera :size="16" />
+            </button>
+          </div>
           <div class="user-details">
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-meta">🐾 铲屎官 | 已加入 365 天</p>
           </div>
+          <input ref="avatarInput" type="file" accept="image/*" class="avatar-input" @change="handleAvatarUpload" />
         </div>
 
         <div class="stats-row">
-          <div class="stat-card">
+          <div class="stat-card" @click="goToPosts">
             <div class="stat-value">{{ profileStats.posts }}</div>
             <div class="stat-label">帖子</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" @click="goToFollowers">
             <div class="stat-value">{{ profileStats.followers }}</div>
             <div class="stat-label">粉丝</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ profileStats.mutualHelps }}</div>
-            <div class="stat-label">互助</div>
+          <div class="stat-card" @click="goToPets">
+            <div class="stat-value">{{ petStore.userPets.length }}</div>
+            <div class="stat-label">我的宠物</div>
           </div>
         </div>
       </div>
@@ -101,27 +144,6 @@ const handleLogout = () => {
     </div>
 
     <div class="page-content">
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">🐾 我的宠物</h3>
-          <button class="add-btn" @click="addPet">
-            <Plus :size="16" />
-            <span>添加</span>
-          </button>
-        </div>
-        <div class="pet-grid">
-          <div
-            v-for="pet in petStore.userPets"
-            :key="pet.id"
-            class="pet-card"
-            @click="goToPetProfile(pet.id)"
-          >
-            <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" />
-            <span class="pet-name">{{ pet.name }}</span>
-          </div>
-        </div>
-      </div>
-
       <div class="section">
         <div class="menu-list">
           <button
@@ -231,6 +253,36 @@ const handleLogout = () => {
   object-fit: cover;
   border: 4px solid #fff;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.avatar-wrapper {
+  position: relative;
+}
+
+.change-avatar-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: linear-gradient(135deg, #F97316, #FB923C);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+  transition: all 0.2s ease;
+}
+
+.change-avatar-btn:active {
+  transform: scale(0.9);
+}
+
+.avatar-input {
+  display: none;
 }
 
 .user-details {
