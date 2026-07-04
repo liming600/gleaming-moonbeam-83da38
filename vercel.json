@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "none",
-  "functions": {},
-  "edgeFunctions": {},
-  "experimental": {
-    "edgeRuntime": false
-  }
+  "framework": "none"
 }
