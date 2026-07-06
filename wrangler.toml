@@ -1,0 +1,10 @@
+name = "pet-circle"
+type = "static"
+account_id = ""
+workers_dev = true
+route = ""
+zone_id = ""
+
+[build]
+command = "npm run build"
+publish = "dist"
