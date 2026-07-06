@@ -1,11 +1,10 @@
 name = "pet-circle"
 type = "pages"
 account_id = ""
-workers_dev = true
 
 [build]
-command = "cd pet-circle && npm install && npm run build"
-publish = "pet-circle/dist"
+command = "npm run build"
+publish = "dist"
 
 [pages]
-build_output_dir = "pet-circle/dist"
+build_output_dir = "dist"
