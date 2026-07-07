@@ -18,6 +18,8 @@ onMounted(() => {
   setTimeout(() => {
     dailyPetTip.value = feedStore.getDailyPetTip()
   }, 300)
+
+  helpStore.loadHelpPosts()
 })
 
 const zones = [

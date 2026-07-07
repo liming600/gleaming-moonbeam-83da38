@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "seed": "tsx scripts/seedData.ts"
   },
   "dependencies": {
     "@supabase/storage-js": "^2.109.0",
@@ -17,14 +18,17 @@
     "sass": "1.77",
     "vant": "4.8",
     "vue": "^3.5.13",
-    "vue-router": "4.3"
+    "vue-router": "4.3",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",
     "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vue/tsconfig": "^0.7.0",
+    "dotenv": "^17.4.2",
     "netlify-cli": "^26.1.0",
+    "tsx": "^4.23.0",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vue-tsc": "^2.2.8"

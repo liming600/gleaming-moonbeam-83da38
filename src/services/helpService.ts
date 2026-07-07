@@ -19,6 +19,7 @@ export interface HelpPost {
   status: 'open' | 'taken' | 'resolved'
   statusLabel: string
   is_urgent: boolean
+  accepted_answer?: string
   location?: HelpPostLocation | null
   created_at: string
 }
@@ -69,30 +70,39 @@ export const helpService = {
         return { posts: [], error }
       }
 
-      const posts: HelpPost[] = (data || []).map((item: any) => ({
-        id: item.id,
-        author_id: item.author_id,
-        author_name: item.users?.name || '',
-        author_avatar: item.users?.avatar_url || '',
-        zone: item.zone as 'experience' | 'question' | 'rescue' | 'mutual',
-        zoneLabel: zoneLabels[item.zone] || '',
-        title: item.title,
-        content: item.content,
-        answers_count: item.answers_count || 0,
-        status: item.status as 'open' | 'taken' | 'resolved',
-        statusLabel: statusLabels[item.status] || '',
-        is_urgent: item.is_urgent || false,
-        location: item.location_address
-          ? {
-              address: item.location_address,
-              latitude: item.location_latitude || null,
-              longitude: item.location_longitude || null
-            }
-          : null,
-        created_at: item.created_at
-      }))
+      const postsWithAnswers: HelpPost[] = await Promise.all(
+        (data || []).map(async (item: any) => {
+          const { count } = await supabase
+            .from('help_answers')
+            .select('id', { count: 'exact' })
+            .eq('help_post_id', item.id)
 
-      return { posts, error: null }
+          return {
+            id: item.id,
+            author_id: item.author_id,
+            author_name: item.users?.name || '',
+            author_avatar: item.users?.avatar_url || '',
+            zone: item.zone as 'experience' | 'question' | 'rescue' | 'mutual',
+            zoneLabel: zoneLabels[item.zone] || '',
+            title: item.title,
+            content: item.content,
+            answers_count: count || 0,
+            status: item.status as 'open' | 'taken' | 'resolved',
+            statusLabel: statusLabels[item.status] || '',
+            is_urgent: item.is_urgent || false,
+            location: item.location_address
+              ? {
+                  address: item.location_address,
+                  latitude: item.location_latitude || null,
+                  longitude: item.location_longitude || null
+                }
+              : null,
+            created_at: item.created_at
+          }
+        })
+      )
+
+      return { posts: postsWithAnswers, error: null }
     } catch (error) {
       return { posts: [], error: error as Error }
     }
@@ -117,6 +127,11 @@ export const helpService = {
         return { post: null, error: null }
       }
 
+      const { count } = await supabase
+        .from('help_answers')
+        .select('id', { count: 'exact' })
+        .eq('help_post_id', postId)
+
       const post: HelpPost = {
         id: data.id,
         author_id: data.author_id,
@@ -126,7 +141,7 @@ export const helpService = {
         zoneLabel: zoneLabels[data.zone] || '',
         title: data.title,
         content: data.content,
-        answers_count: data.answers_count || 0,
+        answers_count: count || 0,
         status: data.status as 'open' | 'taken' | 'resolved',
         statusLabel: statusLabels[data.status] || '',
         is_urgent: data.is_urgent || false,
@@ -300,6 +315,12 @@ export const helpService = {
 
   async acceptAnswer(postId: string, answerId: string): Promise<{ error: Error | null }> {
     try {
+      const { data: answerData } = await supabase
+        .from('help_answers')
+        .select('content')
+        .eq('id', answerId)
+        .single()
+
       await supabase
         .from('help_answers')
         .update({ is_accepted: true })
@@ -307,12 +328,44 @@ export const helpService = {
 
       await supabase
         .from('help_posts')
-        .update({ status: 'resolved' })
+        .update({ 
+          status: 'resolved',
+          accepted_answer: answerData?.content || null
+        })
         .eq('id', postId)
 
       return { error: null }
     } catch (error) {
       return { error: error as Error }
+    }
+  },
+
+  async deleteAnswer(answerId: string, helpPostId: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error: deleteError } = await supabase
+        .from('help_answers')
+        .delete()
+        .eq('id', answerId)
+
+      if (deleteError) {
+        return { success: false, error: deleteError }
+      }
+
+      const { data: helpPost } = await supabase
+        .from('help_posts')
+        .select('answers_count')
+        .eq('id', helpPostId)
+        .single()
+      if (helpPost) {
+        await supabase
+          .from('help_posts')
+          .update({ answers_count: Math.max(0, helpPost.answers_count - 1) })
+          .eq('id', helpPostId)
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
     }
   }
 }

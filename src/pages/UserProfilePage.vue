@@ -1,82 +1,95 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, Users } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
-import { useFeedStore } from '@/stores/feedStore'
-import PostCard from '@/components/PostCard.vue'
+import { useUserStore } from '@/stores/userStore'
+import { useHelpStore } from '@/stores/helpStore'
+import { useFollowStore } from '@/stores/followStore'
+import { userService, type User } from '@/services/userService'
 
 const route = useRoute()
 const router = useRouter()
 const petStore = usePetStore()
-const feedStore = useFeedStore()
+const userStore = useUserStore()
+const helpStore = useHelpStore()
+const followStore = useFollowStore()
 
 const isFollowing = ref(false)
 const userId = computed(() => route.params.id as string)
+const user = ref<User | null>(null)
+const isLoading = ref(true)
+const userStats = ref({ following: 0, followers: 0, pets: 0 })
 
-const users = [
-  {
-    id: 'demo1',
-    name: '铲屎官小明',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=young%20man%20portrait%20friendly%20smile&image_size=square',
-    posts: 28,
-    followers: 245,
-    mutualHelps: 12,
-    description: '爱猫爱狗的铲屎官，分享宠物日常~'
-  },
-  {
-    id: 'demo2',
-    name: '爱宠达人小红',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=young%20woman%20portrait%20friendly%20smile&image_size=square',
-    posts: 35,
-    followers: 189,
-    mutualHelps: 8,
-    description: '专业宠物美容师，分享养宠心得~'
-  },
-  {
-    id: 'demo3',
-    name: '宠物爱好者小刚',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=young%20man%20portrait%20glasses%20friendly&image_size=square',
-    posts: 15,
-    followers: 76,
-    mutualHelps: 5,
-    description: '仓鼠饲养爱好者~'
-  },
-  {
-    id: 'demo4',
-    name: '猫奴阿强',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=young%20man%20portrait%20casual%20style&image_size=square',
-    posts: 42,
-    followers: 312,
-    mutualHelps: 15,
-    description: '资深猫奴，家有三只猫~'
-  }
-]
-
-const user = computed(() => users.find(u => u.id === userId.value))
+const isOwnProfile = computed(() => {
+  return userStore.currentUser?.id === userId.value
+})
 
 const userPets = computed(() => {
   if (!userId.value) return []
   return petStore.pets.filter(p => p.ownerId === userId.value)
 })
 
-const userPosts = computed(() => {
+const userHelpPosts = computed(() => {
   if (!userId.value) return []
-  const petIds = userPets.value.map(p => p.id)
-  return feedStore.posts.filter(p => petIds.includes(p.petId))
+  return helpStore.helpPosts.filter(p => p.authorId === userId.value)
 })
 
 const back = () => {
   router.back()
 }
 
-const toggleFollow = () => {
-  isFollowing.value = !isFollowing.value
+const toggleFollow = async () => {
+  if (isOwnProfile.value || !userStore.currentUser) return
+  
+  const { success, following } = await followStore.toggleFollow(userId.value, userStore.currentUser.id)
+  if (success) {
+    isFollowing.value = following
+    if (following) {
+      userStats.value.followers++
+      userStore.profileStats.following++
+    } else {
+      userStats.value.followers = Math.max(0, userStats.value.followers - 1)
+      userStore.profileStats.following = Math.max(0, userStore.profileStats.following - 1)
+    }
+  }
 }
 
 const goToPetProfile = (petId: string) => {
   router.push(`/pet/${petId}`)
 }
+
+
+
+onMounted(async () => {
+  isLoading.value = true
+  
+  const [{ user: loadedUser }, stats] = await Promise.all([
+    userService.getUserById(userId.value),
+    userService.getUserStats(userId.value)
+  ])
+  
+  if (loadedUser) {
+    user.value = loadedUser
+  }
+  
+  if (!stats.error) {
+    userStats.value = {
+      following: stats.following,
+      followers: stats.followers,
+      pets: stats.pets
+    }
+  }
+  
+  await petStore.loadUserPets(userId.value)
+  await helpStore.loadHelpPosts()
+  
+  if (userStore.currentUser && !isOwnProfile.value) {
+    isFollowing.value = await followStore.checkFollowing(userStore.currentUser.id, userId.value)
+  }
+  
+  isLoading.value = false
+})
 </script>
 
 <template>
@@ -89,35 +102,76 @@ const goToPetProfile = (petId: string) => {
       <div class="header-placeholder"></div>
     </header>
 
-    <div v-if="user" class="user-header">
-      <div class="cover-image">
-        <img src="https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pets%20collection%20cats%20dogs%20happy%20warm%20colorful&image_size=landscape_16_9" alt="封面" />
+    <div v-if="isLoading" class="user-profile-skeleton">
+      <div class="skeleton-cover"></div>
+      <div class="skeleton-avatar-container">
+        <div class="skeleton-avatar"></div>
+        <div class="skeleton-name"></div>
+        <div class="skeleton-info"></div>
+        <div class="skeleton-follow-btn"></div>
       </div>
-      <div class="avatar-container">
-        <img :src="user.avatar" :alt="user.name" class="user-avatar" />
-        <div class="user-name">{{ user.name }}</div>
-        <p class="user-desc">{{ user.description }}</p>
-        <button class="follow-btn" :class="{ followed: isFollowing }" @click="toggleFollow">
-          {{ isFollowing ? '已关注' : '+ 关注' }}
-        </button>
+      <div class="skeleton-stats"></div>
+      <div class="skeleton-section">
+        <div class="skeleton-section-header"></div>
+        <div class="skeleton-pet-grid">
+          <div class="skeleton-pet-card" v-for="i in 3" :key="i"></div>
+        </div>
       </div>
+      <div class="skeleton-section">
+        <div class="skeleton-section-header"></div>
+        <div class="skeleton-post-card" v-for="i in 3" :key="i"></div>
+      </div>
+    </div>
 
-      <div class="stats-card">
-        <div class="stat-item" @click="router.push(`/user/${userId}/posts`)">
-          <div class="stat-value">{{ user.posts }}</div>
-          <div class="stat-label">帖子</div>
+    <div v-else-if="user" class="user-header">
+      <div class="profile-card">
+        <div class="cover-wrapper">
+          <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pets%20collection%20cats%20dogs%20happy%20warm%20colorful&image_size=landscape_16_9" alt="封面" class="cover-image" />
+          <div class="cover-overlay"></div>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-value">{{ user.followers }}</div>
-          <div class="stat-label">粉丝</div>
+        <div class="avatar-section">
+          <img 
+            :src="user.avatar_url || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar%20friendly%20face&image_size=square'" 
+            :alt="user.name" 
+            class="user-avatar" 
+          />
+          <div class="profile-info">
+            <div class="user-name">{{ user.name }}</div>
+            <p class="user-desc">{{ user.bio || '这家伙很懒，什么都没写~' }}</p>
+          </div>
+          <button 
+            v-if="!isOwnProfile" 
+            class="follow-btn" 
+            :class="{ followed: isFollowing }" 
+            @click="toggleFollow"
+          >
+            {{ isFollowing ? '已关注' : '+ 关注' }}
+          </button>
+          <div v-else class="self-badge">我的主页</div>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-value">{{ user.mutualHelps }}</div>
-          <div class="stat-label">互助</div>
+
+        <div class="stats-card">
+          <div class="stat-item" @click="router.push(`/followers/${userId}?type=following`)">
+            <div class="stat-value">{{ userStats.following }}</div>
+            <div class="stat-label">关注</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item" @click="router.push(`/followers/${userId}?type=followers`)">
+            <div class="stat-value">{{ userStats.followers }}</div>
+            <div class="stat-label">粉丝</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item" @click="isOwnProfile ? router.push('/my-pets') : goToPetProfile(userPets[0]?.id || '')">
+            <div class="stat-value">{{ userStats.pets }}</div>
+            <div class="stat-label">宠物</div>
+          </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="!isLoading && !user" class="empty-state">
+      <span class="empty-icon">😕</span>
+      <p>用户不存在</p>
     </div>
 
     <div v-if="user" class="section">
@@ -145,18 +199,28 @@ const goToPetProfile = (petId: string) => {
 
     <div v-if="user" class="section">
       <div class="section-header">
-        <h3 class="section-title">📝 最新帖子</h3>
+        <h3 class="section-title">💡 互助帖子</h3>
       </div>
       <div class="posts-section">
-        <PostCard
-          v-for="(post, index) in userPosts"
+        <div
+          v-for="post in userHelpPosts"
           :key="post.id"
-          :post="post"
-          :index="index"
-        />
-        <div v-if="userPosts.length === 0" class="empty-state">
+          class="help-post-item"
+          @click="router.push(`/help/${post.id}`)"
+        >
+          <div class="help-post-header">
+            <span class="help-post-zone">{{ post.zoneLabel }}</span>
+          </div>
+          <h4 class="help-post-title">{{ post.title }}</h4>
+          <p class="help-post-content">{{ post.content }}</p>
+          <div class="help-post-meta">
+            <span class="meta-item">💬 {{ post.answers }} 回答</span>
+            <span class="meta-item">{{ post.statusLabel }}</span>
+          </div>
+        </div>
+        <div v-if="userHelpPosts.length === 0" class="empty-state">
           <span class="empty-icon">📭</span>
-          <p>还没有帖子~</p>
+          <p>还没有发布互助帖子~</p>
         </div>
       </div>
     </div>
@@ -211,65 +275,95 @@ const goToPetProfile = (petId: string) => {
   padding-top: 50px;
 }
 
-.cover-image {
-  width: 100%;
-  height: 140px;
+.profile-card {
+  background: #fff;
+  margin: 16px;
+  border-radius: 24px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.1);
 }
 
-.cover-image img {
+.cover-wrapper {
+  position: relative;
+  height: 120px;
+}
+
+.cover-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-container {
+.cover-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.avatar-section {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: -40px;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 20px 20px;
+  margin-top: -50px;
   position: relative;
 }
 
 .user-avatar {
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   object-fit: cover;
-  border: 4px solid #fff;
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.2);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+  flex-shrink: 0;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .user-name {
-  margin-top: 12px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: #292524;
 }
 
 .user-desc {
-  margin-top: 6px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-size: 13px;
   color: #57534E;
-  text-align: center;
-  max-width: 80%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.self-badge {
+  padding: 8px 24px;
+  background: #F5F5F4;
+  color: #A8A29E;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 .follow-btn {
-  margin-top: 16px;
-  padding: 10px 32px;
+  padding: 8px 24px;
   background: linear-gradient(135deg, #F97316, #FB923C);
   color: #fff;
   border: none;
-  border-radius: 25px;
-  font-size: 15px;
+  border-radius: 20px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 3px 8px rgba(249, 115, 22, 0.25);
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .follow-btn:active {
@@ -283,14 +377,13 @@ const goToPetProfile = (petId: string) => {
 }
 
 .stats-card {
-  margin: 20px 16px;
-  background: #fff;
-  border-radius: 20px;
-  padding: 20px;
+  margin: 0 16px 16px;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.08);
+  background: #FFF9F5;
+  border-radius: 16px;
 }
 
 .stat-item {
@@ -413,6 +506,57 @@ const goToPetProfile = (petId: string) => {
   padding: 0;
 }
 
+.help-post-item {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+
+.help-post-header {
+  margin-bottom: 8px;
+}
+
+.help-post-zone {
+  padding: 4px 12px;
+  background: rgba(249, 115, 22, 0.1);
+  color: #F97316;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.help-post-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #292524;
+  margin-bottom: 8px;
+}
+
+.help-post-content {
+  font-size: 14px;
+  color: #57534E;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.help-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.meta-item {
+  font-size: 13px;
+  color: #A8A29E;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -428,5 +572,143 @@ const goToPetProfile = (petId: string) => {
 
 .empty-state p {
   font-size: 14px;
+}
+
+.user-profile-skeleton {
+  padding-top: 50px;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-cover {
+  width: 100%;
+  height: 140px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-avatar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -40px;
+  position: relative;
+}
+
+.skeleton-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.2);
+}
+
+.skeleton-name {
+  width: 40%;
+  height: 24px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-info {
+  width: 60%;
+  height: 14px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-follow-btn {
+  width: 120px;
+  height: 40px;
+  margin-top: 16px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-stats {
+  margin: 20px 16px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.skeleton-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeleton-stats > div::before {
+  content: '';
+  width: 40px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-stats > div::after {
+  content: '';
+  width: 30px;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-section {
+  background: #fff;
+  margin: 16px;
+  padding: 16px;
+  border-radius: 20px;
+}
+
+.skeleton-section-header {
+  width: 40%;
+  height: 18px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-pet-grid {
+  display: flex;
+  gap: 12px;
+}
+
+.skeleton-pet-card {
+  width: 80px;
+  height: 100px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-post-card {
+  height: 200px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 </style>

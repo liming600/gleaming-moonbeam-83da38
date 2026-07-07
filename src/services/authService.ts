@@ -24,13 +24,24 @@ export const authService = {
       }
 
       if (data.user) {
-        await supabase.from('users').insert({
-          id: data.user.id,
-          email: data.user.email || email,
-          name,
-          avatar_url: null,
-          bio: null
-        })
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single()
+
+        if (userData) {
+          return {
+            user: {
+              id: userData.id,
+              email: userData.email,
+              name: userData.name,
+              avatar_url: userData.avatar_url,
+              bio: userData.bio
+            },
+            error: null
+          }
+        }
 
         return {
           user: {

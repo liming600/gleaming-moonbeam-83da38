@@ -3,14 +3,20 @@ import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, UserCheck } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
+import { supabase } from '@/supabase/supabaseClient'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
 const type = computed(() => route.query.type as string || 'followers')
-const userId = computed(() => route.params.id as string || userStore.currentUser?.id)
-const pageTitle = computed(() => type.value === 'followers' ? '我的粉丝' : '我的关注')
+const pageUserId = computed(() => route.params.id as string)
+const pageTitle = computed(() => {
+  if (pageUserId.value) {
+    return type.value === 'followers' ? '粉丝' : '关注'
+  }
+  return type.value === 'followers' ? '我的粉丝' : '我的关注'
+})
 
 const followers = ref<any[]>([])
 const isLoading = ref(false)
@@ -23,21 +29,41 @@ const goToUserProfile = (userId: string) => {
   router.push(`/user/${userId}`)
 }
 
-onMounted(async () => {
-  isLoading.value = true
-  await loadFollowers()
-  isLoading.value = false
-})
+const toggleFollow = async (userId: string, follower: any) => {
+  if (!userStore.currentUser) return
+  
+  const { data } = await supabase
+    .from('follows')
+    .select('id')
+    .eq('follower_id', userStore.currentUser.id)
+    .eq('following_id', userId)
+    .single()
+  
+  if (data) {
+    await supabase.from('follows').delete().eq('id', data.id)
+    follower.isFollowed = false
+  } else {
+    await supabase.from('follows').insert({
+      follower_id: userStore.currentUser.id,
+      following_id: userId
+    })
+    follower.isFollowed = true
+  }
+}
 
 const loadFollowers = async () => {
-  const { default: supabase } = await import('@/supabase/supabaseClient')
+  if (!userStore.currentUser) {
+    return
+  }
+  
+  const userId = route.params.id as string || userStore.currentUser.id
   
   let userIds: string[] = []
   
   if (type.value === 'followers') {
     const { data, error } = await supabase.from('follows')
       .select('follower_id')
-      .eq('following_id', userId.value)
+      .eq('following_id', userId)
     
     if (!error && data) {
       userIds = data.map((item: { follower_id: string }) => item.follower_id)
@@ -45,7 +71,7 @@ const loadFollowers = async () => {
   } else {
     const { data, error } = await supabase.from('follows')
       .select('following_id')
-      .eq('follower_id', userId.value)
+      .eq('follower_id', userId)
     
     if (!error && data) {
       userIds = data.map((item: { following_id: string }) => item.following_id)
@@ -58,10 +84,36 @@ const loadFollowers = async () => {
       .in('id', userIds)
     
     if (usersData) {
-      followers.value = usersData
+      const [{ data: myFollows }, { data: theirFollows }] = await Promise.all([
+        supabase.from('follows')
+          .select('following_id')
+          .eq('follower_id', userStore.currentUser!.id),
+        supabase.from('follows')
+          .select('following_id')
+          .eq('follower_id', userId)
+      ])
+      
+      const myFollowingIds = (myFollows || []).map((f: { following_id: string }) => f.following_id)
+      const theirFollowingIds = (theirFollows || []).map((f: { following_id: string }) => f.following_id)
+      
+      followers.value = usersData.map((user: any) => ({
+        ...user,
+        isFollowed: myFollowingIds.includes(user.id),
+        isMutual: myFollowingIds.includes(user.id) && theirFollowingIds.includes(userStore.currentUser!.id)
+      }))
     }
   }
 }
+
+onMounted(async () => {
+  if (!userStore.isLoggedIn) {
+    await userStore.autoLogin()
+  }
+  
+  isLoading.value = true
+  await loadFollowers()
+  isLoading.value = false
+})
 </script>
 
 <template>
@@ -94,18 +146,23 @@ const loadFollowers = async () => {
         >
           <div class="follower-info" @click="goToUserProfile(follower.id)">
             <img 
-              :src="follower.avatar_url || 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pet%20lover%20avatar&image_size=square'" 
+              :src="follower.avatar_url || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20lover%20avatar&image_size=square'" 
               :alt="follower.name" 
               class="follower-avatar" 
             />
             <div class="follower-details">
               <h4 class="follower-name">{{ follower.name }}</h4>
-              <p class="follower-meta">铲屎官</p>
+              <p class="follower-meta">{{ follower.isMutual ? '互相关注' : '铲屎官' }}</p>
             </div>
           </div>
-          <button class="follow-btn">
-            <UserCheck :size="16" />
-            <span>已关注</span>
+          <button 
+            v-if="follower.id !== userStore.currentUser?.id" 
+            class="follow-btn"
+            :class="{ followed: follower.isFollowed }"
+            @click="toggleFollow(follower.id, follower)"
+          >
+            <UserCheck v-if="follower.isFollowed" :size="16" />
+            <span>{{ follower.isFollowed ? '已关注' : '+ 关注' }}</span>
           </button>
         </div>
       </div>

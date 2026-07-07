@@ -2,6 +2,7 @@
 import { ArrowLeft, Bell, Globe, Shield, HelpCircle, Info, ChevronRight, Moon } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { logger } from '@/utils/logger'
 
 const router = useRouter()
 
@@ -57,7 +58,7 @@ const settingsGroups = [
 ]
 
 const handleAction = (action: string) => {
-  console.log('Action:', action)
+  logger.log('Action:', action)
 }
 
 const back = () => {

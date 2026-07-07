@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ArrowLeft, Camera, Check, Search, X } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { ArrowLeft, Camera, Check, Search, X, Sparkles } from 'lucide-vue-next'
 import { useUiStore } from '@/stores/uiStore'
+import { usePetStore } from '@/stores/petStore'
+import { useUserStore } from '@/stores/userStore'
 import { useRouter, useRoute } from 'vue-router'
 import { storageService } from '@/services/storageService'
+import { generatePetAvatar } from '@/utils/avatarGenerator'
 
 const uiStore = useUiStore()
+const petStore = usePetStore()
+const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 
+const isEditMode = computed(() => !!route.query.id)
+const editPetId = computed(() => route.query.id as string)
+
 const returnTo = computed(() => {
-  return (route.query.returnTo as string) || '/profile'
+  return (route.query.returnTo as string) || '/my-pets'
 })
 
 const petName = ref('')
@@ -86,7 +94,7 @@ const back = () => {
   router.back()
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!petName.value.trim()) {
     uiStore.showWarningToast('请输入宠物名称')
     return
@@ -96,9 +104,69 @@ const handleSubmit = () => {
     return
   }
 
-  uiStore.showSuccessToast(`成功添加宠物：${petName.value}`)
-  router.push(returnTo.value)
+  if (!userStore.currentUser) {
+    uiStore.showWarningToast('请先登录')
+    router.push('/login')
+    return
+  }
+
+  if (isEditMode.value) {
+    const result = await petStore.updatePet(editPetId.value, {
+      name: petName.value,
+      avatar: petAvatar.value,
+      breed: petBreed.value,
+      age: petAge.value,
+      description: petDescription.value
+    })
+
+    if (result.success) {
+      uiStore.showSuccessToast('宠物信息更新成功')
+      router.push(returnTo.value)
+    } else {
+      uiStore.showErrorToast(result.message)
+    }
+  } else {
+    const result = await petStore.addPet({
+      name: petName.value,
+      avatar: petAvatar.value,
+      breed: petBreed.value,
+      age: petAge.value,
+      description: petDescription.value,
+      ownerId: userStore.currentUser.id
+    })
+
+    if (result.success) {
+      uiStore.showSuccessToast(`成功添加宠物：${petName.value}`)
+      router.push(returnTo.value)
+    } else {
+      uiStore.showErrorToast(result.message)
+    }
+  }
 }
+
+const loadPetData = async () => {
+  if (!isEditMode.value || !editPetId.value) return
+
+  uiStore.showLoading('加载中...')
+  const { success } = await petStore.loadPetById(editPetId.value)
+  
+  if (success) {
+    const pet = petStore.getPetById(editPetId.value)
+    if (pet) {
+      petName.value = pet.name
+      petBreed.value = pet.breed
+      petAge.value = pet.age
+      petAvatar.value = pet.avatar || ''
+      petDescription.value = pet.description
+    }
+  }
+  
+  uiStore.hideLoading()
+}
+
+onMounted(() => {
+  loadPetData()
+})
 
 const selectBreed = (breed: string) => {
   petBreed.value = breed
@@ -141,6 +209,16 @@ const handleAvatarUpload = async (event: Event) => {
     target.value = ''
   }
 }
+
+const generateRandomAvatar = () => {
+  if (!petBreed.value) {
+    uiStore.showWarningToast('请先选择宠物品种')
+    openBreedSelector()
+    return
+  }
+  
+  petAvatar.value = generatePetAvatar(petBreed.value)
+}
 </script>
 
 <template>
@@ -149,7 +227,7 @@ const handleAvatarUpload = async (event: Event) => {
       <button class="back-btn" @click="back">
         <ArrowLeft :size="24" />
       </button>
-      <h1 class="header-title">添加宠物</h1>
+      <h1 class="header-title">{{ isEditMode ? '编辑宠物' : '添加宠物' }}</h1>
       <button class="submit-btn" @click="handleSubmit">
         <Check :size="20" />
       </button>
@@ -170,10 +248,16 @@ const handleAvatarUpload = async (event: Event) => {
           </div>
         </div>
         <input ref="avatarInput" type="file" accept="image/*" class="avatar-input" @change="handleAvatarUpload" />
-        <button class="upload-btn" @click="avatarInput?.click()">
-          <Camera :size="16" />
-          <span>更换头像</span>
-        </button>
+        <div class="avatar-actions">
+          <button class="upload-btn" @click="avatarInput?.click()">
+            <Camera :size="16" />
+            <span>上传头像</span>
+          </button>
+          <button class="generate-btn" @click="generateRandomAvatar">
+            <Sparkles :size="16" />
+            <span>随机生成</span>
+          </button>
+        </div>
       </div>
 
       <div class="form-section">
@@ -383,6 +467,11 @@ const handleAvatarUpload = async (event: Event) => {
   background: #F5F5F4;
 }
 
+.avatar-actions {
+  display: flex;
+  gap: 12px;
+}
+
 .upload-btn {
   display: flex;
   align-items: center;
@@ -395,6 +484,24 @@ const handleAvatarUpload = async (event: Event) => {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: rgba(139, 92, 246, 0.1);
+  color: #8B5CF6;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.generate-btn:active {
+  transform: scale(0.98);
 }
 
 .avatar-input {

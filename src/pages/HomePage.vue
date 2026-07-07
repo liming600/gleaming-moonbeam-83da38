@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Search, Sparkles } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { Search, Sparkles, Loader2 } from 'lucide-vue-next'
 import { useFeedStore } from '@/stores/feedStore'
 import { useRouter } from 'vue-router'
 import PostCard from '@/components/PostCard.vue'
@@ -10,13 +10,47 @@ const feedStore = useFeedStore()
 const router = useRouter()
 const dailyQuote = ref('')
 const isLoading = ref(true)
+const loadingMore = ref(false)
+const loadMoreTrigger = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
 
 onMounted(() => {
   setTimeout(() => {
     dailyQuote.value = feedStore.getDailyQuote()
-    isLoading.value = false
   }, 800)
+
+  setTimeout(() => {
+    feedStore.loadPosts(1, true)
+    isLoading.value = false
+  }, 1000)
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !feedStore.isLoading && feedStore.hasMore && !loadingMore.value) {
+          loadMore()
+        }
+      })
+    },
+    { rootMargin: '100px' }
+  )
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
 })
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+  }
+})
+
+const loadMore = async () => {
+  loadingMore.value = true
+  await feedStore.loadPosts(feedStore.currentPage + 1)
+  loadingMore.value = false
+}
 
 const tabs = [
   { key: 'recommend', label: '推荐' },
@@ -80,10 +114,14 @@ const handleSearch = () => {
       />
     </div>
 
-    <div class="loading-more">
-      <span class="loading-icon">🐾</span>
-      <span class="loading-text">加载更多...</span>
-      <span class="loading-icon">🐾</span>
+    <div ref="loadMoreTrigger" class="loading-more">
+      <Loader2 v-if="loadingMore" :size="18" class="loader" />
+      <template v-else-if="feedStore.hasMore">
+        <span class="loading-icon">🐾</span>
+        <span class="loading-text">加载更多...</span>
+        <span class="loading-icon">🐾</span>
+      </template>
+      <span v-else class="no-more-text">- 已加载全部内容 -</span>
     </div>
     </div>
   </div>
@@ -244,6 +282,16 @@ const handleSearch = () => {
 .loading-icon:nth-child(1) { animation-delay: 0s; }
 .loading-icon:nth-child(3) { animation-delay: 0.3s; }
 
+.loader {
+  animation: spin 1s linear infinite;
+  color: #F97316;
+}
+
+.no-more-text {
+  font-size: 13px;
+  color: #D6D3D1;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
@@ -252,5 +300,10 @@ const handleSearch = () => {
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

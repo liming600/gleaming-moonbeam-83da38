@@ -1,19 +1,40 @@
-<script setup lang="ts">
+﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, Heart, MessageCircle, Share2, Send } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useFeedStore } from '@/stores/feedStore'
 import { postService, type Comment } from '@/services/postService'
+import { logger } from '@/utils/logger'
+import { useUserStore } from '@/stores/userStore'
+import { useUiStore } from '@/stores/uiStore'
 
 const route = useRoute()
 const router = useRouter()
 const feedStore = useFeedStore()
+const userStore = useUserStore()
+const uiStore = useUiStore()
 
 const commentText = ref('')
 const comments = ref<Comment[]>([])
 const isLoadingComments = ref(false)
 
 const postId = computed(() => route.params.id as string)
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  return date.toLocaleDateString('zh-CN')
+}
 
 const post = computed(() => {
   return feedStore.posts.find(p => p.id === postId.value)
@@ -23,9 +44,17 @@ const back = () => {
   router.back()
 }
 
-const handleLike = () => {
+const handleLike = async () => {
+  if (!userStore.currentUser) {
+    uiStore.showErrorToast('请先登录')
+    router.push('/login')
+    return
+  }
   if (post.value) {
-    feedStore.toggleLike(post.value.id)
+    const { success, message } = await feedStore.toggleLike(post.value.id)
+    if (!success) {
+      uiStore.showErrorToast(message)
+    }
   }
 }
 
@@ -41,7 +70,7 @@ const loadComments = async () => {
   isLoadingComments.value = false
 
   if (error) {
-    console.warn('加载评论失败:', error.message)
+    logger.warn('加载评论失败:', error.message)
     return
   }
 
@@ -57,11 +86,31 @@ const submitComment = async () => {
     commentText.value = ''
     await loadComments()
   } else {
-    console.warn('评论失败:', message)
+    logger.warn('评论失败:', message)
   }
 }
 
-onMounted(() => {
+const canDeleteComment = (comment: Comment): boolean => {
+  if (!userStore.currentUser) return false
+  if (comment.user_id === userStore.currentUser.id) return true
+  if (post.value && post.value.ownerId === userStore.currentUser.id) return true
+  return false
+}
+
+const deleteComment = async (commentId: string) => {
+  if (!confirm('确定要删除这条评论吗？')) return
+
+  const { success, message } = await feedStore.deleteComment(commentId, postId.value)
+  if (success) {
+    comments.value = comments.value.filter(c => c.id !== commentId)
+    uiStore.showSuccessToast('删除成功')
+  } else {
+    uiStore.showErrorToast(message)
+  }
+}
+
+onMounted(async () => {
+  await feedStore.loadPostById(postId.value)
   loadComments()
 })
 </script>
@@ -81,7 +130,7 @@ onMounted(() => {
         <img :src="post.petAvatar" :alt="post.petName" class="pet-avatar" />
         <div class="pet-info">
           <span class="pet-name">{{ post.petName }}</span>
-          <span class="post-time">{{ post.createdAt }}</span>
+          <span class="post-time">{{ formatDate(post.createdAt) }}</span>
         </div>
       </div>
 
@@ -135,12 +184,21 @@ onMounted(() => {
           :src="comment.user_avatar"
           :alt="comment.user_name"
           class="comment-avatar"
-          @error="(e) => { (e.target as HTMLImageElement).src = 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20avatar&image_size=square' }"
+          @error="(e) => { (e.target as HTMLImageElement).src = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar&image_size=square' }"
         />
         <div class="comment-content">
           <div class="comment-header">
             <span class="comment-author">{{ comment.user_name }}</span>
-            <span class="comment-time">{{ comment.created_at }}</span>
+            <div class="comment-header-right">
+              <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
+              <button 
+                v-if="canDeleteComment(comment)" 
+                class="comment-delete-btn" 
+                @click="deleteComment(comment.id)"
+              >
+                删除
+              </button>
+            </div>
           </div>
           <p class="comment-text">{{ comment.content }}</p>
         </div>
@@ -365,6 +423,12 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
+.comment-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .comment-author {
   font-size: 15px;
   font-weight: 600;
@@ -374,6 +438,22 @@ onMounted(() => {
 .comment-time {
   font-size: 12px;
   color: #A8A29E;
+}
+
+.comment-delete-btn {
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.comment-delete-btn:active {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .comment-text {

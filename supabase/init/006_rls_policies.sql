@@ -227,4 +227,4 @@ CREATE POLICY "Allow users to delete their own images"
 ON storage.objects 
 FOR DELETE 
 TO authenticated 
-USING (bucket_id = 'images');
+USING (bucket_id = 'images' AND ((metadata->>'user_id')::uuid = auth.uid()));

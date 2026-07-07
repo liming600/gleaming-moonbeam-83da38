@@ -13,6 +13,11 @@ export interface Pet {
   personality?: string
   created_at?: string
   updated_at?: string
+  posts_count?: number
+  likes_count?: number
+  followers_count?: number
+  owner_name?: string
+  owner_avatar_url?: string
 }
 
 export const petService = {
@@ -36,17 +41,43 @@ export const petService = {
 
   async getPetById(petId: string): Promise<{ pet: Pet | null; error: Error | null }> {
     try {
-      const { data, error } = await supabase
+      const { data: petData, error: petError } = await supabase
         .from('pets')
         .select('*')
         .eq('id', petId)
         .single()
 
-      if (error) {
-        return { pet: null, error }
+      if (petError) {
+        return { pet: null, error: petError }
       }
 
-      return { pet: data || null, error: null }
+      if (!petData) {
+        return { pet: null, error: null }
+      }
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', petData.owner_id)
+        .single()
+
+      const [postsRes, pawsRes] = await Promise.all([
+        supabase.from('posts').select('id, likes_count', { count: 'exact' }).eq('pet_id', petId),
+        supabase.from('pet_paws').select('id', { count: 'exact' }).eq('pet_id', petId)
+      ])
+
+      const totalLikes = (postsRes.data || []).reduce((sum, post) => sum + (post.likes_count || 0), 0)
+
+      const pet: Pet = {
+        ...petData,
+        posts_count: postsRes.count || 0,
+        likes_count: totalLikes,
+        followers_count: pawsRes.count || 0,
+        owner_name: userData?.name || '',
+        owner_avatar_url: userData?.avatar_url || ''
+      }
+
+      return { pet, error: null }
     } catch (error) {
       return { pet: null, error: error as Error }
     }
@@ -89,12 +120,16 @@ export const petService = {
     }
   },
 
-  async deletePet(petId: string): Promise<{ error: Error | null }> {
+  async deletePet(petId: string): Promise<{ success: boolean; message: string; error: Error | null }> {
     try {
       const { error } = await supabase.from('pets').delete().eq('id', petId)
-      return { error }
+      if (error) {
+        return { success: false, message: error.message, error }
+      }
+      return { success: true, message: '删除成功', error: null }
     } catch (error) {
-      return { error: error as Error }
+      const err = error as Error
+      return { success: false, message: err.message, error: err }
     }
   }
 }

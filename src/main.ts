@@ -4,9 +4,11 @@ import persist from 'pinia-plugin-persistedstate'
 import router from './router'
 import './style.scss'
 import App from './App.vue'
+import vLazy from './directives/vLazy'
+import { logger } from './utils/logger'
 
 window.onerror = function(message, source, lineno, colno, error) {
-  console.error('全局错误:', { message, source, lineno, colno, error })
+  logger.error('全局错误:', { message, source, lineno, colno, error })
   const appEl = document.getElementById('app')
   if (appEl) {
     appEl.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif; font-size: 14px; background: #fefefe;">
@@ -20,7 +22,7 @@ window.onerror = function(message, source, lineno, colno, error) {
 }
 
 window.addEventListener('unhandledrejection', function(event) {
-  console.error('未处理的 Promise 拒绝:', event.reason)
+  logger.error('未处理的 Promise 拒绝:', event.reason)
   const appEl = document.getElementById('app')
   if (appEl) {
     appEl.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif; font-size: 14px; background: #fefefe;">
@@ -38,9 +40,10 @@ pinia.use(persist)
 
 app.use(pinia)
 app.use(router)
+app.directive('lazy', vLazy)
 
 app.config.errorHandler = function(err, _instance, info) {
-  console.error('Vue 组件错误:', err, info)
+  logger.error('Vue 组件错误:', err, info)
 }
 
 app.mount('#app')

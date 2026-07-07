@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref } from 'vue'
 import { ArrowLeft } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
@@ -16,7 +16,7 @@ const notifications = ref([
   {
     id: '1',
     type: 'like',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20cat%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square',
     author: '橘猫球球',
     content: '赞了你发布的帖子',
     time: '5分钟前',
@@ -25,7 +25,7 @@ const notifications = ref([
   {
     id: '2',
     type: 'comment',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20dog%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20dog%20avatar&image_size=square',
     author: '金毛旺财',
     content: '评论了你发布的帖子：太可爱了！',
     time: '30分钟前',
@@ -34,7 +34,7 @@ const notifications = ref([
   {
     id: '3',
     type: 'follow',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20rabbit%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20rabbit%20avatar&image_size=square',
     author: '兔子小白',
     content: '关注了你家猫咪',
     time: '1小时前',
@@ -43,7 +43,7 @@ const notifications = ref([
   {
     id: '4',
     type: 'help',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20hamster%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20hamster%20avatar&image_size=square',
     author: '仓鼠团团',
     content: '采纳了你在互助大厅的回答',
     time: '2小时前',
@@ -63,7 +63,7 @@ const notifications = ref([
 const messages = ref([
   {
     id: '1',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20cat%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square',
     name: '橘猫球球',
     lastMessage: '你家猫咪太可爱了！',
     time: '5分钟前',
@@ -71,7 +71,7 @@ const messages = ref([
   },
   {
     id: '2',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20dog%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20dog%20avatar&image_size=square',
     name: '金毛旺财',
     lastMessage: '周末一起遛狗呀',
     time: '1小时前',
@@ -79,7 +79,7 @@ const messages = ref([
   },
   {
     id: '3',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20rabbit%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20rabbit%20avatar&image_size=square',
     name: '兔子小白',
     lastMessage: '谢谢你的建议',
     time: '昨天',
@@ -87,7 +87,7 @@ const messages = ref([
   },
   {
     id: '4',
-    avatar: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20bird%20avatar&image_size=square',
+    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20bird%20avatar&image_size=square',
     name: '鹦鹉乐乐',
     lastMessage: '我家鹦鹉会说话了！',
     time: '2天前',

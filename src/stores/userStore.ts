@@ -1,26 +1,34 @@
-import { defineStore } from 'pinia'
+﻿﻿﻿﻿import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService, type AuthUser } from '@/services/authService'
+import { handleAuthError } from '@/utils/errorHandler'
+import { logger } from '@/utils/logger'
+import { supabase } from '@/supabase/supabaseClient'
 
 export const useUserStore = defineStore('user', () => {
   const isLoggedIn = ref(false)
   const currentUser = ref<AuthUser | null>(null)
   const isLoading = ref(false)
 
-  const demoUser: AuthUser = {
-    id: 'demo1',
-    email: 'demo@example.com',
-    name: '铲屎官小明',
-    avatar_url: 'https://neeko-copilot.bytedance.net/api/text2image?prompt=young%20man%20portrait%20friendly%20smile&image_size=square',
-    bio: null
+  const profileStats = ref({
+    following: 0,
+    posts: 0,
+    points: 0,
+    likes: 0,
+    followers: 0,
+    mutualHelps: 0,
+    notificationCount: 0
+  })
+
+  const registrationDate = ref(new Date())
+
+  const updateNotificationCount = (count: number) => {
+    profileStats.value.notificationCount = count
   }
 
-  const profileStats = ref({
-    posts: 28,
-    points: 56,
-    likes: 390,
-    followers: 245,
-    mutualHelps: 12
+  const getDaysJoined = computed(() => {
+    const diff = Date.now() - registrationDate.value.getTime()
+    return Math.floor(diff / (24 * 60 * 60 * 1000))
   })
 
   const login = async (email: string, password: string) => {
@@ -29,12 +37,14 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = false
 
     if (error) {
-      return { success: false, message: error.message }
+      const result = handleAuthError(error)
+      return { success: false, message: result.message }
     }
 
     if (user) {
       isLoggedIn.value = true
       currentUser.value = user
+      await loadProfileStats()
       return { success: true, message: '登录成功' }
     }
 
@@ -47,21 +57,21 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = false
 
     if (error) {
-      return { success: false, message: error.message }
+      const result = handleAuthError(error)
+      return { success: false, message: result.message }
     }
 
     if (user) {
       isLoggedIn.value = true
       currentUser.value = user
+      await loadProfileStats()
       return { success: true, message: '注册成功' }
     }
 
     return { success: false, message: '注册失败' }
   }
 
-  const register = async (email: string, password: string, name: string) => {
-    return signUp(email, password, name)
-  }
+  
 
   const resetPassword = async (email: string) => {
     isLoading.value = true
@@ -85,22 +95,64 @@ export const useUserStore = defineStore('user', () => {
     const { user, error } = await authService.getCurrentUser()
     
     if (error) {
-      console.warn('自动登录失败:', error.message)
+      logger.warn('自动登录失败:', error.message)
       return false
     }
 
     if (user) {
       isLoggedIn.value = true
       currentUser.value = user
+      await loadProfileStats()
       return true
     }
 
     return false
   }
 
-  const useDemoUser = () => {
-    isLoggedIn.value = true
-    currentUser.value = demoUser
+  const loadProfileStats = async () => {
+    if (!currentUser.value) return
+
+    const userId = currentUser.value.id
+
+    const [followersCountRes, followingCountRes, helpsCountRes, userResult] = await Promise.all([
+      supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', userId),
+      supabase.from('follows').select('id', { count: 'exact' }).eq('follower_id', userId),
+      supabase.from('help_posts').select('id', { count: 'exact' }).eq('author_id', userId),
+      supabase.from('users').select('created_at').eq('id', userId).single()
+    ])
+
+    const { data: userPets, error: petsError } = await supabase
+      .from('pets')
+      .select('id')
+      .eq('owner_id', userId)
+    
+    let postsCount = 0
+    if (!petsError && userPets && userPets.length > 0) {
+      const petIds = userPets.map(p => p.id)
+      const { count } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact' })
+        .in('pet_id', petIds)
+      postsCount = typeof count === 'number' ? count : 0
+    }
+
+    const followersCount = followersCountRes.count || 0
+    const followingCount = followingCountRes.count || 0
+    const helpsCount = helpsCountRes.count || 0
+
+    profileStats.value = {
+      following: followingCount,
+      posts: postsCount,
+      points: Math.floor(postsCount * 10 + helpsCount * 20),
+      likes: 0,
+      followers: followersCount,
+      mutualHelps: helpsCount,
+      notificationCount: profileStats.value.notificationCount
+    }
+
+    if (userResult.data?.created_at) {
+      registrationDate.value = new Date(userResult.data.created_at)
+    }
   }
 
   const updateUserAvatar = async (avatarUrl: string) => {
@@ -118,17 +170,17 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     currentUser,
     isLoading,
-    demoUser,
     profileStats,
     login,
     signUp,
-    register,
     resetPassword,
     logout,
     autoLogin,
-    useDemoUser,
+    loadProfileStats,
     updateUserAvatar,
-    getCurrentUserId
+    getCurrentUserId,
+    updateNotificationCount,
+    getDaysJoined
   }
 }, {
   persist: {

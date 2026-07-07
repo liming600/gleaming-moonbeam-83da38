@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, MessageCircle, Send, ThumbsUp } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useHelpStore } from '@/stores/helpStore'
+import { useUserStore } from '@/stores/userStore'
+import { helpService, type HelpAnswer } from '@/services/helpService'
 
 const route = useRoute()
 const router = useRouter()
 const helpStore = useHelpStore()
+const userStore = useUserStore()
 
 const answerText = ref('')
+const answers = ref<HelpAnswer[]>([])
+const isLoading = ref(true)
 
 const helpId = computed(() => route.params.id as string)
 
@@ -16,37 +21,50 @@ const helpPost = computed(() => {
   return helpStore.getHelpPostById(helpId.value)
 })
 
-const answers = ref([
-  { id: '1', author: '兽医小李', avatar: '', content: '建议先停换新粮，喂益生菌调理，慢慢过渡', likes: 28, isLiked: false },
-  { id: '2', author: '资深铲屎官', avatar: '', content: '可以试试布拉迪酵母，效果不错', likes: 15, isLiked: false },
-  { id: '3', author: '新手养猫', avatar: '', content: '我家猫之前也这样，换粮要循序渐进', likes: 8, isLiked: false }
-])
-
 const back = () => {
   router.back()
 }
 
-const toggleLike = (answerId: string) => {
-  const answer = answers.value.find(a => a.id === answerId)
-  if (answer) {
-    answer.isLiked = !answer.isLiked
-    answer.likes += answer.isLiked ? 1 : -1
+const submitAnswer = async () => {
+  if (!answerText.value.trim()) return
+  if (!userStore.currentUser) return
+
+  const { answer, error } = await helpService.createAnswer(
+    helpId.value,
+    userStore.currentUser.id,
+    answerText.value
+  )
+
+  if (!error && answer) {
+    answers.value.push(answer)
+    answerText.value = ''
   }
 }
 
-const submitAnswer = () => {
-  if (!answerText.value.trim()) return
+const deleteAnswer = async (answerId: string) => {
+  if (!userStore.currentUser) return
 
-  answers.value.push({
-    id: String(Date.now()),
-    author: '我',
-    avatar: '',
-    content: answerText.value,
-    likes: 0,
-    isLiked: false
-  })
-  answerText.value = ''
+  const answer = answers.value.find(a => a.id === answerId)
+  if (!answer || answer.author_id !== userStore.currentUser.id) return
+
+  const { success } = await helpService.deleteAnswer(answerId, helpId.value)
+  if (success) {
+    answers.value = answers.value.filter(a => a.id !== answerId)
+  }
 }
+
+const loadAnswers = async () => {
+  isLoading.value = true
+  const { answers: loadedAnswers, error } = await helpService.getAnswers(helpId.value)
+  if (!error) {
+    answers.value = loadedAnswers
+  }
+  isLoading.value = false
+}
+
+onMounted(async () => {
+  await loadAnswers()
+})
 </script>
 
 <template>
@@ -91,16 +109,28 @@ const submitAnswer = () => {
       <h3 class="answers-title">回答 ({{ answers.length }})</h3>
 
       <div v-for="answer in answers" :key="answer.id" class="answer-item">
-        <div class="answer-avatar">👤</div>
+        <img 
+          :src="answer.author_avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar%20friendly%20face&image_size=square'" 
+          :alt="answer.author_name" 
+          class="answer-avatar" 
+        />
         <div class="answer-content">
           <div class="answer-header">
-            <span class="answer-author">{{ answer.author }}</span>
+            <span class="answer-author">{{ answer.author_name }}</span>
+            <span class="answer-time">{{ answer.created_at }}</span>
+            <button 
+              v-if="userStore.currentUser?.id === answer.author_id" 
+              class="delete-btn" 
+              @click="deleteAnswer(answer.id)"
+            >
+              删除
+            </button>
           </div>
           <p class="answer-text">{{ answer.content }}</p>
           <div class="answer-footer">
-            <button class="like-btn" @click="toggleLike(answer.id)">
-              <ThumbsUp :size="16" :class="{ 'liked': answer.isLiked }" />
-              <span>{{ answer.likes }}</span>
+            <button class="like-btn">
+              <ThumbsUp :size="16" />
+              <span>点赞</span>
             </button>
             <button class="reply-btn">
               <MessageCircle :size="16" />
@@ -312,12 +342,27 @@ const submitAnswer = () => {
 
 .answer-header {
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .answer-author {
   font-size: 15px;
   font-weight: 600;
   color: #292524;
+  flex-shrink: 0;
+}
+
+.delete-btn {
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .answer-text {

@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { petService } from '@/services/petService'
+import { petPawService } from '@/services/petPawService'
 import type { Pet as ApiPet } from '@/services/petService'
-import { mockPets, currentUserPets, type Pet } from '@/mock/pets'
+import type { Pet } from '@/mock/pets'
 import { useUserStore } from './userStore'
+import { handleApiError } from '@/utils/errorHandler'
+import { logger } from '@/utils/logger'
+import { cache, CACHE_TTL } from '@/utils/cache'
 
 const mapApiPetToPet = (apiPet: ApiPet): Pet => ({
   id: apiPet.id,
@@ -14,15 +18,15 @@ const mapApiPetToPet = (apiPet: ApiPet): Pet => ({
   avatar_url: apiPet.avatar_url,
   coverImage: '',
   description: apiPet.personality || '',
-  posts: 0,
-  likes: 0,
-  followers: 0,
+  posts: apiPet.posts_count || 0,
+  likes: apiPet.likes_count || 0,
+  followers: apiPet.followers_count || 0,
   createdAt: apiPet.created_at || '',
   created_at: apiPet.created_at,
   ownerId: apiPet.owner_id,
   owner_id: apiPet.owner_id,
-  ownerName: '',
-  ownerAvatar: '',
+  ownerName: apiPet.owner_name || '',
+  ownerAvatar: apiPet.owner_avatar_url || '',
   milestones: []
 })
 
@@ -36,9 +40,37 @@ const calculateAge = (birthDate: string): string => {
   return '不久前'
 }
 
+const parseAgeToBirthDate = (age: string): string | undefined => {
+  if (!age || age.trim() === '') return undefined
+  
+  const yearMatch = age.match(/(\d+)岁/)
+  if (yearMatch) {
+    const years = parseInt(yearMatch[1], 10)
+    const date = new Date()
+    date.setFullYear(date.getFullYear() - years)
+    return date.toISOString().split('T')[0]
+  }
+  
+  const monthMatch = age.match(/(\d+)个月/)
+  if (monthMatch) {
+    const months = parseInt(monthMatch[1], 10)
+    const date = new Date()
+    date.setMonth(date.getMonth() - months)
+    return date.toISOString().split('T')[0]
+  }
+  
+  if (age.includes('不久前') || age.includes('刚出生')) {
+    const date = new Date()
+    date.setDate(date.getDate() - 7)
+    return date.toISOString().split('T')[0]
+  }
+  
+  return undefined
+}
+
 export const usePetStore = defineStore('pet', () => {
-  const pets = ref<Pet[]>(mockPets)
-  const userPets = ref<Pet[]>(currentUserPets)
+  const pets = ref<Pet[]>([])
+  const userPets = ref<Pet[]>([])
   const selectedPetId = ref<string | null>(null)
   const isLoading = ref(false)
 
@@ -55,36 +87,53 @@ export const usePetStore = defineStore('pet', () => {
     return pets.value.find(p => p.id === petId) || null
   }
 
-  const loadUserPets = async () => {
+  const loadUserPets = async (ownerId?: string) => {
     const userStore = useUserStore()
-    if (!userStore.currentUser) return
+    const targetUserId = ownerId || userStore.currentUser?.id
+    if (!targetUserId) return
+
+    const cacheKey = `user_pets_${targetUserId}`
+    const cachedPets = cache.get<Pet[]>(cacheKey)
+    
+    if (cachedPets) {
+      userPets.value = [...cachedPets]
+      if (cachedPets.length > 0) {
+        pets.value = [...pets.value.filter(p => !cachedPets.some(lp => lp.id === p.id)), ...cachedPets]
+      }
+      return { success: true, message: '从缓存加载成功' }
+    }
 
     isLoading.value = true
-    const { pets: loadedPets, error } = await petService.getPetsByOwner(userStore.currentUser.id)
+    const { pets: loadedPets, error } = await petService.getPetsByOwner(targetUserId)
     isLoading.value = false
 
     if (error) {
-      console.warn('加载宠物列表失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '加载宠物列表失败')
+      return { success: false, message: result.message }
     }
 
-    if (loadedPets.length > 0) {
-      const mappedPets = loadedPets.map(mapApiPetToPet)
-      userPets.value = mappedPets
+    const mappedPets = loadedPets.map(mapApiPetToPet)
+    userPets.value = mappedPets
+    
+    if (mappedPets.length > 0) {
       pets.value = [...pets.value.filter(p => !mappedPets.some(lp => lp.id === p.id)), ...mappedPets]
     }
+    
+    cache.set(cacheKey, mappedPets, CACHE_TTL.LONG)
 
     return { success: true, message: '加载成功' }
   }
 
   const loadPetById = async (petId: string) => {
+    const cacheKey = `pet_${petId}`
+    
     isLoading.value = true
     const { pet, error } = await petService.getPetById(petId)
     isLoading.value = false
 
     if (error) {
-      console.warn('加载宠物详情失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '加载宠物详情失败')
+      return { success: false, message: result.message }
     }
 
     if (pet) {
@@ -100,12 +149,14 @@ export const usePetStore = defineStore('pet', () => {
       if (userExistingIndex >= 0) {
         userPets.value[userExistingIndex] = mappedPet
       }
+
+      cache.set(cacheKey, mappedPet, CACHE_TTL.LONG)
     }
 
     return { success: true, message: '加载成功' }
   }
 
-  const addPet = async (petData: Omit<Pet, 'id' | 'created_at' | 'updated_at'>) => {
+  const addPet = async (petData: { name: string; avatar?: string; breed?: string; age?: string; description?: string; ownerId?: string }) => {
     const userStore = useUserStore()
     if (!userStore.currentUser) {
       return { success: false, message: '请先登录' }
@@ -113,21 +164,21 @@ export const usePetStore = defineStore('pet', () => {
 
     isLoading.value = true
     const { pet, error } = await petService.createPet({
-      owner_id: userStore.currentUser.id,
+      owner_id: petData.ownerId || userStore.currentUser.id,
       name: petData.name,
-      avatar_url: petData.avatar || petData.avatar_url,
-      breed: petData.breed,
+      avatar_url: petData.avatar || undefined,
+      breed: petData.breed || undefined,
       gender: undefined,
-      birth_date: undefined,
+      birth_date: parseAgeToBirthDate(petData.age || ''),
       weight: undefined,
       color: undefined,
-      personality: petData.description
+      personality: petData.description || undefined
     })
     isLoading.value = false
 
     if (error) {
-      console.warn('创建宠物失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '创建宠物失败')
+      return { success: false, message: result.message }
     }
 
     if (pet) {
@@ -147,16 +198,16 @@ export const usePetStore = defineStore('pet', () => {
       avatar_url: petData.avatar || petData.avatar_url,
       breed: petData.breed,
       gender: undefined,
-      birth_date: undefined,
+      birth_date: parseAgeToBirthDate(petData.age || ''),
       weight: undefined,
       color: undefined,
-      personality: petData.description
+      personality: petData.description || petData.personality
     })
     isLoading.value = false
 
     if (error) {
-      console.warn('更新宠物失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '更新宠物失败')
+      return { success: false, message: result.message }
     }
 
     if (pet) {
@@ -171,6 +222,8 @@ export const usePetStore = defineStore('pet', () => {
         userPets.value[userIndex] = mappedPet
       }
 
+      cache.remove(`pet_${petId}`)
+
       return { success: true, message: '更新成功', pet: mappedPet }
     }
 
@@ -179,12 +232,12 @@ export const usePetStore = defineStore('pet', () => {
 
   const deletePet = async (petId: string) => {
     isLoading.value = true
-    const { error } = await petService.deletePet(petId)
+    const { success, message, error } = await petService.deletePet(petId)
     isLoading.value = false
 
-    if (error) {
-      console.warn('删除宠物失败:', error.message)
-      return { success: false, message: error.message }
+    if (!success) {
+      logger.warn('删除宠物失败:', message)
+      return { success: false, message, error }
     }
 
     pets.value = pets.value.filter(p => p.id !== petId)
@@ -194,7 +247,13 @@ export const usePetStore = defineStore('pet', () => {
       selectedPetId.value = null
     }
 
-    return { success: true, message: '删除成功' }
+    cache.remove(`pet_${petId}`)
+    const userStore = useUserStore()
+    if (userStore.currentUser) {
+      cache.remove(`user_pets_${userStore.currentUser.id}`)
+    }
+
+    return { success: true, message, error: null }
   }
 
   const updatePetAvatar = async (petId: string, avatarUrl: string) => {
@@ -211,6 +270,51 @@ export const usePetStore = defineStore('pet', () => {
     await petService.updatePet(petId, { avatar_url: avatarUrl })
   }
 
+  const petPawsCount = ref<Record<string, number>>({})
+  const userPawedToday = ref<Record<string, boolean>>({})
+
+  const addPetPaw = async (petId: string): Promise<{ success: boolean; message: string }> => {
+    const userStore = useUserStore()
+    if (!userStore.currentUser) {
+      return { success: false, message: '请先登录' }
+    }
+
+    const { success, message } = await petPawService.addPaw(userStore.currentUser.id, petId)
+
+    if (success) {
+      if (petPawsCount.value[petId] !== undefined) {
+        petPawsCount.value[petId]++
+      }
+      userPawedToday.value[`${userStore.currentUser.id}_${petId}`] = true
+    }
+
+    return { success, message }
+  }
+
+  const getPetPawsCount = async (petId: string): Promise<number> => {
+    if (petPawsCount.value[petId] !== undefined) {
+      return petPawsCount.value[petId]
+    }
+
+    const count = await petPawService.getPawsCount(petId)
+    petPawsCount.value[petId] = count
+    return count
+  }
+
+  const checkHasPawedToday = async (petId: string): Promise<boolean> => {
+    const userStore = useUserStore()
+    if (!userStore.currentUser) return false
+
+    const cacheKey = `${userStore.currentUser.id}_${petId}`
+    if (userPawedToday.value[cacheKey] !== undefined) {
+      return userPawedToday.value[cacheKey]
+    }
+
+    const hasPawed = await petPawService.hasPawedToday(userStore.currentUser.id, petId)
+    userPawedToday.value[cacheKey] = hasPawed
+    return hasPawed
+  }
+
   return {
     pets,
     userPets,
@@ -224,7 +328,10 @@ export const usePetStore = defineStore('pet', () => {
     addPet,
     updatePet,
     deletePet,
-    updatePetAvatar
+    updatePetAvatar,
+    addPetPaw,
+    getPetPawsCount,
+    checkHasPawedToday
   }
 }, {
   persist: {

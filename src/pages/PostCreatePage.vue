@@ -16,9 +16,14 @@ const uiStore = useUiStore()
 const userStore = useUserStore()
 const router = useRouter()
 
+interface UploadedImage {
+  localUrl: string
+  remoteUrl: string | null
+}
+
 const selectedPetId = ref<string>('')
 const content = ref('')
-const images = ref<string[]>([])
+const images = ref<UploadedImage[]>([])
 const selectedTags = ref<string[]>([])
 const location = ref<Location | null>(null)
 const isSubmitting = ref(false)
@@ -53,6 +58,7 @@ const handleFileChange = async (event: Event) => {
 
   const maxImages = 9 - images.value.length
   const filesToUpload = Array.from(files).slice(0, maxImages)
+  const userId = userStore.getCurrentUserId
 
   for (let i = 0; i < filesToUpload.length; i++) {
     const file = filesToUpload[i]
@@ -60,27 +66,27 @@ const handleFileChange = async (event: Event) => {
     uploadProgress.value[imageIndex] = 0
 
     const reader = new FileReader()
-    reader.onload = (e) => {
-      images.value.push(e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
+    const readPromise = new Promise<string>((resolve) => {
+      reader.onload = (e) => {
+        resolve(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    })
 
-    const userId = userStore.getCurrentUserId
+    const [localUrl, uploadResult] = await Promise.all([
+      readPromise,
+      storageService.uploadImage(
+        file,
+        `posts/${Date.now()}_${imageIndex}_${file.name}`,
+        userId
+      )
+    ])
 
-    const result = await storageService.uploadImage(
-      file,
-      `posts/${Date.now()}_${imageIndex}_${file.name}`,
-      userId
-    )
-
-    if (result.error) {
-      uiStore.showErrorToast('图片上传失败: ' + result.error.message)
-      images.value.pop()
-      delete uploadProgress.value[imageIndex]
-    } else if (result.url) {
-      images.value[imageIndex] = result.url
-    }
-
+    images.value.push({
+      localUrl,
+      remoteUrl: uploadResult.url || null
+    })
+    uploadProgress.value[imageIndex] = 100
     delete uploadProgress.value[imageIndex]
   }
 
@@ -116,12 +122,14 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true
 
+  const remoteUrls = images.value.map(img => img.remoteUrl).filter((url): url is string => url !== null)
+
   const result = await feedStore.addPost({
     petId: pet.id,
     petName: pet.name,
     petAvatar: pet.avatar,
     content: content.value,
-    images: images.value,
+    images: remoteUrls,
     tags: selectedTags.value,
     date: new Date().toISOString().split('T')[0],
     location: location.value
@@ -185,7 +193,7 @@ const back = () => {
           :key="index"
           class="image-item"
         >
-          <img :src="img" alt="上传的图片" />
+          <img :src="img.localUrl" alt="上传的图片" />
           <div v-if="uploadProgress[index] !== undefined" class="upload-overlay">
             <Loader2 :size="20" class="loader" />
           </div>

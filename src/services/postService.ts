@@ -1,4 +1,6 @@
 import { supabase } from '@/supabase/supabaseClient'
+import { mapApiPostToPost, mapApiCommentToComment, type ApiPost, type ApiComment } from '@/utils/mappers'
+import { executeQuery, executeSingleQuery } from '@/utils/supabaseQuery'
 
 export interface PostLocation {
   address: string
@@ -6,285 +8,176 @@ export interface PostLocation {
   longitude: number | null
 }
 
-export interface Post {
-  id: string
-  pet_id: string
-  pet_name: string
-  pet_avatar: string
-  content: string
-  images: string[]
-  tags: string[]
-  likes_count: number
-  comments_count: number
-  is_public: boolean
-  is_diary: boolean
-  mood?: string
-  location?: PostLocation | null
-  created_at: string
-  date: string
+export type Post = ReturnType<typeof mapApiPostToPost>
+export type Comment = ReturnType<typeof mapApiCommentToComment>
+
+const POSTS_SELECT = `
+  *
+`
+
+const COMMENTS_SELECT = `
+  *,
+  users(name, avatar_url)
+`
+
+async function fetchPetInfo(petId: string): Promise<{ name: string; avatar_url: string; owner_id: string } | null> {
+  const { data, error } = await supabase
+    .from('pets')
+    .select('name, avatar_url, owner_id')
+    .eq('id', petId)
+    .single()
+
+  if (error || !data) {
+    return null
+  }
+
+  return {
+    name: data.name,
+    avatar_url: data.avatar_url || '',
+    owner_id: data.owner_id || ''
+  }
 }
 
-export interface Comment {
-  id: string
-  post_id: string
-  user_id: string
-  user_name: string
-  user_avatar: string
-  content: string
-  created_at: string
+async function enrichPostsWithPetInfo(posts: ApiPost[]): Promise<ApiPost[]> {
+  return Promise.all(
+    posts.map(async (post) => {
+      if (!post.pets || !post.pets.name) {
+        const petInfo = await fetchPetInfo(post.pet_id)
+        if (petInfo) {
+          post.pets = petInfo
+        }
+      }
+      return post
+    })
+  )
 }
 
 export const postService = {
   async getPosts(page: number = 1, pageSize: number = 20): Promise<{ posts: Post[]; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+    const { data, error } = await executeQuery<ApiPost>(
+      supabase
         .from('posts')
-        .select(`
-          *,
-          pets(name, avatar_url)
-        `)
+        .select(POSTS_SELECT)
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1)
-
-      if (error) {
-        return { posts: [], error }
-      }
-
-      const posts: Post[] = (data || []).map((item: any) => ({
-        id: item.id,
-        pet_id: item.pet_id,
-        pet_name: item.pets?.name || '',
-        pet_avatar: item.pets?.avatar_url || '',
-        content: item.content,
-        images: item.images || [],
-        tags: item.tags || [],
-        likes_count: item.likes_count || 0,
-        comments_count: item.comments_count || 0,
-        is_public: item.is_public,
-        is_diary: item.is_diary || false,
-        mood: item.mood,
-        location: item.location_address
-          ? {
-              address: item.location_address,
-              latitude: item.location_latitude || null,
-              longitude: item.location_longitude || null
-            }
-          : null,
-        created_at: item.created_at,
-        date: item.date
-      }))
-
-      return { posts, error: null }
-    } catch (error) {
-      return { posts: [], error: error as Error }
+    )
+    
+    if (error) {
+      return { posts: [], error }
     }
+
+    const enrichedPosts = await enrichPostsWithPetInfo(data)
+    return { posts: enrichedPosts.map(mapApiPostToPost), error: null }
   },
 
   async getPostsByPet(petId: string): Promise<{ posts: Post[]; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+    const { data, error } = await executeQuery<ApiPost>(
+      supabase
         .from('posts')
-        .select(`
-          *,
-          pets(name, avatar_url)
-        `)
+        .select(POSTS_SELECT)
         .eq('pet_id', petId)
         .order('created_at', { ascending: false })
-
-      if (error) {
-        return { posts: [], error }
-      }
-
-      const posts: Post[] = (data || []).map((item: any) => ({
-        id: item.id,
-        pet_id: item.pet_id,
-        pet_name: item.pets?.name || '',
-        pet_avatar: item.pets?.avatar_url || '',
-        content: item.content,
-        images: item.images || [],
-        tags: item.tags || [],
-        likes_count: item.likes_count || 0,
-        comments_count: item.comments_count || 0,
-        is_public: item.is_public,
-        is_diary: item.is_diary || false,
-        mood: item.mood,
-        location: item.location_address
-          ? {
-              address: item.location_address,
-              latitude: item.location_latitude || null,
-              longitude: item.location_longitude || null
-            }
-          : null,
-        created_at: item.created_at,
-        date: item.date
-      }))
-
-      return { posts, error: null }
-    } catch (error) {
-      return { posts: [], error: error as Error }
+    )
+    
+    if (error) {
+      return { posts: [], error }
     }
+
+    const enrichedPosts = await enrichPostsWithPetInfo(data)
+    return { posts: enrichedPosts.map(mapApiPostToPost), error: null }
   },
 
   async getPostById(postId: string): Promise<{ post: Post | null; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+    const { data, error } = await executeSingleQuery<ApiPost>(
+      supabase
         .from('posts')
-        .select(`
-          *,
-          pets(name, avatar_url)
-        `)
+        .select(POSTS_SELECT)
         .eq('id', postId)
         .single()
-
-      if (error) {
-        return { post: null, error }
-      }
-
-      if (!data) {
-        return { post: null, error: null }
-      }
-
-      const post: Post = {
-        id: data.id,
-        pet_id: data.pet_id,
-        pet_name: data.pets?.name || '',
-        pet_avatar: data.pets?.avatar_url || '',
-        content: data.content,
-        images: data.images || [],
-        tags: data.tags || [],
-        likes_count: data.likes_count || 0,
-        comments_count: data.comments_count || 0,
-        is_public: data.is_public,
-        is_diary: data.is_diary || false,
-        mood: data.mood,
-        location: data.location_address
-          ? {
-              address: data.location_address,
-              latitude: data.location_latitude || null,
-              longitude: data.location_longitude || null
-            }
-          : null,
-        created_at: data.created_at,
-        date: data.date
-      }
-
-      return { post, error: null }
-    } catch (error) {
-      return { post: null, error: error as Error }
+    )
+    
+    if (error) {
+      return { post: null, error }
     }
+
+    if (data) {
+      if (!data.pets || !data.pets.name) {
+        const petInfo = await fetchPetInfo(data.pet_id)
+        if (petInfo) {
+          data.pets = petInfo
+        }
+      }
+      return { post: mapApiPostToPost(data), error: null }
+    }
+
+    return { post: null, error: null }
   },
 
-  async createPost(post: Omit<Post, 'id' | 'likes_count' | 'comments_count' | 'created_at' | 'pet_name' | 'pet_avatar'>): Promise<{ post: Post | null; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+  async createPost(post: Omit<Post, 'id' | 'likes' | 'comments' | 'createdAt' | 'petName' | 'petAvatar' | 'isLiked'>): Promise<{ post: Post | null; error: Error | null }> {
+    const postType = post.isDiary ? 'diary' : (post.isPublic ? 'public' : 'private')
+    
+    const { data, error } = await executeSingleQuery<ApiPost>(
+      supabase
         .from('posts')
         .insert({
-          pet_id: post.pet_id,
+          pet_id: post.petId,
           content: post.content,
           images: post.images,
           tags: post.tags,
-          is_public: post.is_public,
-          is_diary: post.is_diary,
+          post_type: postType,
           mood: post.mood,
           location_address: post.location?.address,
           location_latitude: post.location?.latitude,
           location_longitude: post.location?.longitude,
           date: post.date
         })
-        .select(`
-          *,
-          pets(name, avatar_url)
-        `)
+        .select(POSTS_SELECT)
         .single()
-
-      if (error) {
-        return { post: null, error }
-      }
-
-      if (!data) {
-        return { post: null, error: null }
-      }
-
-      const createdPost: Post = {
-        id: data.id,
-        pet_id: data.pet_id,
-        pet_name: data.pets?.name || '',
-        pet_avatar: data.pets?.avatar_url || '',
-        content: data.content,
-        images: data.images || [],
-        tags: data.tags || [],
-        likes_count: data.likes_count || 0,
-        comments_count: data.comments_count || 0,
-        is_public: data.is_public,
-        is_diary: data.is_diary || false,
-        mood: data.mood,
-        location: data.location_address
-          ? {
-              address: data.location_address,
-              latitude: data.location_latitude || null,
-              longitude: data.location_longitude || null
-            }
-          : null,
-        created_at: data.created_at,
-        date: data.date
-      }
-
-      return { post: createdPost, error: null }
-    } catch (error) {
-      return { post: null, error: error as Error }
+    )
+    
+    if (error) {
+      return { post: null, error }
     }
+
+    if (data) {
+      if (!data.pets || !data.pets.name) {
+        const petInfo = await fetchPetInfo(data.pet_id)
+        if (petInfo) {
+          data.pets = petInfo
+        }
+      }
+      return { post: mapApiPostToPost(data), error: null }
+    }
+
+    return { post: null, error: null }
   },
 
   async getComments(postId: string): Promise<{ comments: Comment[]; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+    const { data, error } = await executeQuery<ApiComment>(
+      supabase
         .from('comments')
-        .select(`
-          *,
-          users(name, avatar_url)
-        `)
+        .select(COMMENTS_SELECT)
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
-
-      if (error) {
-        return { comments: [], error }
-      }
-
-      const comments: Comment[] = (data || []).map((item: any) => ({
-        id: item.id,
-        post_id: item.post_id,
-        user_id: item.user_id,
-        user_name: item.users?.name || '',
-        user_avatar: item.users?.avatar_url || '',
-        content: item.content,
-        created_at: item.created_at
-      }))
-
-      return { comments, error: null }
-    } catch (error) {
-      return { comments: [], error: error as Error }
-    }
+    )
+    
+    return { comments: data.map(mapApiCommentToComment), error }
   },
 
   async createComment(postId: string, userId: string, content: string): Promise<{ comment: Comment | null; error: Error | null }> {
-    try {
-      const { data, error } = await supabase
+    const { data, error } = await executeSingleQuery<ApiComment>(
+      supabase
         .from('comments')
         .insert({ post_id: postId, user_id: userId, content })
-        .select(`
-          *,
-          users(name, avatar_url)
-        `)
+        .select(COMMENTS_SELECT)
         .single()
+    )
 
-      if (error) {
-        return { comment: null, error }
-      }
+    if (error) {
+      return { comment: null, error }
+    }
 
-      if (!data) {
-        return { comment: null, error: null }
-      }
-
+    if (data) {
       const { data: post } = await supabase
         .from('posts')
         .select('comments_count')
@@ -297,31 +190,25 @@ export const postService = {
           .update({ comments_count: post.comments_count + 1 })
           .eq('id', postId)
       }
-
-      const comment: Comment = {
-        id: data.id,
-        post_id: data.post_id,
-        user_id: data.user_id,
-        user_name: data.users?.name || '',
-        user_avatar: data.users?.avatar_url || '',
-        content: data.content,
-        created_at: data.created_at
-      }
-
-      return { comment, error: null }
-    } catch (error) {
-      return { comment: null, error: error as Error }
     }
+
+    return { comment: data ? mapApiCommentToComment(data) : null, error: null }
   },
 
   async toggleLike(postId: string, userId: string): Promise<{ isLiked: boolean; error: Error | null }> {
     try {
-      const { data: existingLike } = await supabase
+      const { data: likesData, error: likeError } = await supabase
         .from('likes')
         .select('id')
         .eq('post_id', postId)
         .eq('user_id', userId)
-        .single()
+        .limit(1)
+
+      if (likeError) {
+        return { isLiked: false, error: likeError }
+      }
+
+      const existingLike = likesData && likesData.length > 0 ? likesData[0] : null
 
       if (existingLike) {
         await supabase.from('likes').delete().eq('id', existingLike.id)
@@ -360,16 +247,78 @@ export const postService = {
 
   async checkLike(postId: string, userId: string): Promise<{ isLiked: boolean; error: Error | null }> {
     try {
-      const { data } = await supabase
+      const { data: likesData, error } = await supabase
         .from('likes')
         .select('id')
         .eq('post_id', postId)
         .eq('user_id', userId)
-        .single()
+        .limit(1)
 
-      return { isLiked: !!data, error: null }
+      if (error) {
+        return { isLiked: false, error }
+      }
+
+      return { isLiked: !!likesData && likesData.length > 0, error: null }
     } catch (error) {
       return { isLiked: false, error: error as Error }
+    }
+  },
+
+  async deletePost(postId: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
+    }
+  },
+
+  async deleteComment(commentId: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { data: commentData, error: selectError } = await supabase
+        .from('comments')
+        .select('post_id')
+        .eq('id', commentId)
+        .single()
+
+      if (selectError) {
+        return { success: false, error: selectError }
+      }
+
+      const { error: deleteError } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+
+      if (deleteError) {
+        return { success: false, error: deleteError }
+      }
+
+      if (commentData?.post_id) {
+        const { data: post } = await supabase
+          .from('posts')
+          .select('comments_count')
+          .eq('id', commentData.post_id)
+          .single()
+        if (post) {
+          await supabase
+            .from('posts')
+            .update({ comments_count: Math.max(0, post.comments_count - 1) })
+            .eq('id', commentData.post_id)
+        }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
     }
   }
 }

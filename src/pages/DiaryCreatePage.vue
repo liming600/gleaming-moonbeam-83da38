@@ -1,27 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ImagePlus, Send, Lock, ArrowLeft } from 'lucide-vue-next'
+import { ImagePlus, Send, Lock, ArrowLeft, Loader2 } from 'lucide-vue-next'
 import DatePicker from '@/components/DatePicker.vue'
 import LocationPicker from '@/components/LocationPicker.vue'
 import { usePetStore } from '@/stores/petStore'
 import { useFeedStore } from '@/stores/feedStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useUserStore } from '@/stores/userStore'
 import { useRouter } from 'vue-router'
+import { storageService } from '@/services/storageService'
 import type { Location } from '@/mock/posts'
 
 const petStore = usePetStore()
 const feedStore = useFeedStore()
 const uiStore = useUiStore()
+const userStore = useUserStore()
 const router = useRouter()
+
+interface UploadedImage {
+  localUrl: string
+  remoteUrl: string | null
+}
 
 const selectedPetId = ref<string>('')
 const content = ref('')
-const images = ref<string[]>([])
+const images = ref<UploadedImage[]>([])
 const selectedTags = ref<string[]>([])
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const isPublic = ref(false)
 const selectedMood = ref<string>('')
 const location = ref<Location | null>(null)
+const isSubmitting = ref(false)
 
 const moods = [
   { emoji: '😊', label: '开心', key: 'happy' },
@@ -33,6 +42,8 @@ const moods = [
 ]
 
 const availableTags = ['#日记', '#日常', '#成长', '#记录', '#心情', '#健康', '#饮食', '#训练']
+
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const selectPet = (petId: string) => {
   selectedPetId.value = petId
@@ -51,15 +62,54 @@ const toggleTag = (tag: string) => {
   }
 }
 
-const addImage = () => {
-  images.value.push('https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pet%20daily%20life&image_size=landscape_4_3')
+const triggerFileSelect = () => {
+  fileInput.value?.click()
+}
+
+const handleFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+
+  if (!files || files.length === 0) return
+
+  const maxImages = 9 - images.value.length
+  const filesToUpload = Array.from(files).slice(0, maxImages)
+  const userId = userStore.getCurrentUserId
+
+  for (let i = 0; i < filesToUpload.length; i++) {
+    const file = filesToUpload[i]
+
+    const reader = new FileReader()
+    const readPromise = new Promise<string>((resolve) => {
+      reader.onload = (e) => {
+        resolve(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    })
+
+    const [localUrl, uploadResult] = await Promise.all([
+      readPromise,
+      storageService.uploadImage(
+        file,
+        `diaries/${Date.now()}_${images.value.length}_${file.name}`,
+        userId
+      )
+    ])
+
+    images.value.push({
+      localUrl,
+      remoteUrl: uploadResult.url || null
+    })
+  }
+
+  target.value = ''
 }
 
 const removeImage = (index: number) => {
   images.value.splice(index, 1)
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!selectedPetId.value) {
     uiStore.showWarningToast('请选择写日记的宠物')
     return
@@ -72,12 +122,16 @@ const handleSubmit = () => {
   const pet = petStore.getPetById(selectedPetId.value)
   if (!pet) return
 
-  feedStore.addDiary({
+  isSubmitting.value = true
+
+  const remoteUrls = images.value.map(img => img.remoteUrl).filter((url): url is string => url !== null)
+
+  const result = await feedStore.addDiary({
     petId: pet.id,
     petName: pet.name,
     petAvatar: pet.avatar,
     content: content.value,
-    images: images.value,
+    images: remoteUrls,
     tags: selectedTags.value,
     date: selectedDate.value,
     isPublic: isPublic.value,
@@ -85,7 +139,14 @@ const handleSubmit = () => {
     location: location.value
   })
 
-  router.push('/')
+  isSubmitting.value = false
+
+  if (result.success) {
+    uiStore.showSuccessToast('日记发布成功')
+    router.push('/')
+  } else {
+    uiStore.showErrorToast(result.message || '发布失败')
+  }
 }
 
 const back = () => {
@@ -100,9 +161,10 @@ const back = () => {
         <ArrowLeft :size="24" />
       </button>
       <h1 class="header-title">写日记</h1>
-      <button class="submit-btn" @click="handleSubmit">
-        <Send :size="18" />
-        <span>保存</span>
+      <button class="submit-btn" @click="handleSubmit" :disabled="isSubmitting">
+        <Loader2 v-if="isSubmitting" :size="18" class="loader" />
+        <Send v-else :size="18" />
+        <span>{{ isSubmitting ? '保存中...' : '保存' }}</span>
       </button>
     </header>
 
@@ -172,14 +234,22 @@ const back = () => {
           :key="index"
           class="image-item"
         >
-          <img :src="img" alt="上传的图片" />
+          <img :src="img.localUrl" alt="上传的图片" />
           <button class="remove-btn" @click="removeImage(index)">✕</button>
         </div>
-        <button v-if="images.length < 9" class="add-image-btn" @click="addImage">
+        <button v-if="images.length < 9" class="add-image-btn" @click="triggerFileSelect">
           <ImagePlus :size="24" />
           <span>添加图片</span>
         </button>
       </div>
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        multiple
+        class="hidden-file-input"
+        @change="handleFileChange"
+      />
     </div>
 
     <div class="content-section">

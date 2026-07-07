@@ -1,19 +1,82 @@
 <script setup lang="ts">
-import { Heart, MessageCircle, Share2 } from 'lucide-vue-next'
+import { Heart, MessageCircle, Share2, MoreHorizontal, Edit3, Trash2 } from 'lucide-vue-next'
+import { ref } from 'vue'
 import { useFeedStore } from '@/stores/feedStore'
 import { useRouter } from 'vue-router'
-import type { Post } from '@/mock/posts'
+import type { Post } from '@/services/postService'
+import { useUserStore } from '@/stores/userStore'
+import { useUiStore } from '@/stores/uiStore'
+import vLazy from '@/directives/vLazy'
 
-defineProps<{
+const props = defineProps<{
   post: Post
   index?: number
+  showOwnerButton?: boolean
 }>()
 
 const feedStore = useFeedStore()
 const router = useRouter()
+const userStore = useUserStore()
+const uiStore = useUiStore()
 
-const handleLike = (postId: string) => {
-  feedStore.toggleLike(postId)
+const showMenu = ref(false)
+
+const isPostOwner = () => {
+  return props.post.ownerId === userStore.currentUser?.id
+}
+
+const toggleMenu = (e: Event) => {
+  e.stopPropagation()
+  showMenu.value = !showMenu.value
+}
+
+const closeMenu = () => {
+  showMenu.value = false
+}
+
+const handleEdit = (e: Event) => {
+  e.stopPropagation()
+  closeMenu()
+  router.push(`/post-create?id=${props.post.id}`)
+}
+
+const handleDelete = async (e: Event) => {
+  e.stopPropagation()
+  if (!confirm('确定要删除这个帖子吗？')) return
+  
+  closeMenu()
+  uiStore.showLoading('删除中...')
+  const { success, message } = await feedStore.deletePost(props.post.id)
+  if (success) {
+    uiStore.showSuccessToast('删除成功')
+  } else {
+    uiStore.showErrorToast(message)
+  }
+}
+
+const moodEmojis: Record<string, string> = {
+  happy: '😄',
+  love: '❤️',
+  sad: '😢',
+  lazy: '😴',
+  angry: '😠',
+  cool: '😎'
+}
+
+const getMoodEmoji = (mood?: string) => {
+  return mood ? moodEmojis[mood] || '' : ''
+}
+
+const handleLike = async (postId: string) => {
+  if (!userStore.currentUser) {
+    uiStore.showErrorToast('请先登录')
+    router.push('/login')
+    return
+  }
+  const { success, message } = await feedStore.toggleLike(postId)
+  if (!success) {
+    uiStore.showErrorToast(message)
+  }
 }
 
 const goToPostDetail = (postId: string) => {
@@ -24,14 +87,18 @@ const goToPetProfile = (petId: string) => {
   router.push(`/pet/${petId}`)
 }
 
+const goToUserProfile = (ownerId: string) => {
+  router.push(`/user/${ownerId}`)
+}
+
 const handleImageError = (e: Event) => {
   const target = e.target as HTMLImageElement
-  target.src = 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pet%20placeholder&image_size=square'
+  target.src = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20placeholder&image_size=square'
 }
 
 const handleAvatarError = (e: Event) => {
   const target = e.target as HTMLImageElement
-  target.src = 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20cat%20avatar&image_size=square'
+  target.src = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square'
 }
 </script>
 
@@ -41,17 +108,52 @@ const handleAvatarError = (e: Event) => {
     :style="{ animationDelay: `${(index || 0) * 0.1}s` }"
     @click="goToPostDetail(post.id)"
   >
-    <div class="post-header" @click.stop="goToPetProfile(post.petId)">
+    <div class="post-header">
       <img
-        :src="post.petAvatar"
+        v-lazy="post.petAvatar"
         :alt="post.petName"
         class="pet-avatar"
+        @click.stop="goToPetProfile(post.petId)"
         @error="handleAvatarError"
       />
       <div class="pet-info">
-        <span class="pet-name">{{ post.petName }}</span>
-        <span class="post-time">{{ post.createdAt }}</span>
+        <div class="pet-name-row">
+          <span class="pet-name" @click.stop="goToPetProfile(post.petId)">{{ post.petName }}</span>
+          <span v-if="post.isDiary && getMoodEmoji(post.mood)" class="mood-emoji">{{ getMoodEmoji(post.mood) }}</span>
+        </div>
+        <div class="post-meta">
+          <span class="post-time">{{ post.createdAt }}</span>
+        </div>
       </div>
+      <div class="post-header-right">
+        <button 
+          v-if="showOwnerButton && post.ownerId" 
+          class="owner-avatar-btn" 
+          @click.stop="goToUserProfile(post.ownerId)"
+          title="查看主人主页"
+        >
+          <span class="owner-icon">👤</span>
+        </button>
+        <button 
+          v-if="isPostOwner()" 
+          class="more-btn" 
+          @click="toggleMenu"
+          title="更多操作"
+        >
+          <MoreHorizontal :size="18" />
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showMenu" class="post-menu" @click.stop>
+      <button class="menu-item edit-item" @click="handleEdit">
+        <Edit3 :size="16" />
+        <span>编辑</span>
+      </button>
+      <button class="menu-item delete-item" @click="handleDelete">
+        <Trash2 :size="16" />
+        <span>删除</span>
+      </button>
     </div>
 
     <p class="post-content">{{ post.content }}</p>
@@ -60,7 +162,7 @@ const handleAvatarError = (e: Event) => {
       <img
         v-for="(img, idx) in post.images"
         :key="idx"
-        :src="img"
+        v-lazy="img"
         alt="帖子图片"
         class="post-image"
         @error="handleImageError"
@@ -95,6 +197,7 @@ const handleAvatarError = (e: Event) => {
 
 <style scoped>
 .post-card {
+  position: relative;
   background: #fff;
   border-radius: 20px;
   padding: 16px;
@@ -114,7 +217,7 @@ const handleAvatarError = (e: Event) => {
   display: flex;
   align-items: center;
   margin-bottom: 12px;
-  cursor: pointer;
+  justify-content: space-between;
 }
 
 .pet-avatar {
@@ -131,12 +234,45 @@ const handleAvatarError = (e: Event) => {
   margin-left: 12px;
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
+
+.owner-avatar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(249, 115, 22, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.owner-avatar-btn:active {
+  background: rgba(249, 115, 22, 0.2);
+  transform: scale(0.95);
+}
+
+.owner-icon {
+  font-size: 16px;
+}
+
+.pet-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .pet-name {
   font-size: 15px;
   font-weight: 600;
   color: #292524;
+}
+
+.mood-emoji {
+  font-size: 16px;
 }
 
 .post-time {
@@ -208,6 +344,64 @@ const handleAvatarError = (e: Event) => {
 .action-btn .liked {
   color: #FB7185;
   fill: #FB7185;
+}
+
+.post-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.more-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #57534E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.more-btn:active {
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.post-menu {
+  position: absolute;
+  top: 50px;
+  right: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #292524;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.menu-item:active {
+  background: #F5F5F4;
+}
+
+.delete-item {
+  color: #EF4444;
 }
 
 @keyframes fadeIn {

@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { helpService, type HelpPost as ApiHelpPost } from '@/services/helpService'
-import { mockHelpPosts, zoneConfig, type HelpPost } from '@/mock/helpPosts'
+import { zoneConfig, type HelpPost } from '@/mock/helpPosts'
 import { useUserStore } from './userStore'
+import { handleApiError } from '@/utils/errorHandler'
+import { logger } from '@/utils/logger'
 
 const mapApiHelpPostToHelpPost = (apiPost: ApiHelpPost): HelpPost => ({
   id: apiPost.id,
@@ -17,6 +19,7 @@ const mapApiHelpPostToHelpPost = (apiPost: ApiHelpPost): HelpPost => ({
   status: apiPost.status,
   statusLabel: apiPost.statusLabel,
   isUrgent: apiPost.is_urgent,
+  acceptedAnswer: apiPost.accepted_answer,
   location: apiPost.location,
   createdAt: formatDate(apiPost.created_at)
 })
@@ -38,7 +41,7 @@ const formatDate = (dateString: string): string => {
 }
 
 export const useHelpStore = defineStore('help', () => {
-  const helpPosts = ref<HelpPost[]>(mockHelpPosts)
+  const helpPosts = ref<HelpPost[]>([])
   const currentZone = ref<'all' | 'experience' | 'question' | 'rescue' | 'mutual'>('all')
   const isLoading = ref(false)
 
@@ -47,15 +50,18 @@ export const useHelpStore = defineStore('help', () => {
       return [...helpPosts.value].sort((a, b) => {
         if (a.isUrgent && !b.isUrgent) return -1
         if (!a.isUrgent && b.isUrgent) return 1
-        const order = ['刚刚', '10分钟前', '1小时前', '2小时前', '3小时前', '5小时前', '昨天', '3天前', '4天前']
-        const aIndex = order.indexOf(a.createdAt)
-        const bIndex = order.indexOf(b.createdAt)
-        if (aIndex === -1) return 1
-        if (bIndex === -1) return -1
-        return aIndex - bIndex
+        const dateA = new Date(a.createdAt)
+        const dateB = new Date(b.createdAt)
+        return dateB.getTime() - dateA.getTime()
       })
     }
-    return helpPosts.value.filter(p => p.zone === currentZone.value)
+    return helpPosts.value.filter(p => p.zone === currentZone.value).sort((a, b) => {
+      if (a.isUrgent && !b.isUrgent) return -1
+      if (!a.isUrgent && b.isUrgent) return 1
+      const dateA = new Date(a.createdAt)
+      const dateB = new Date(b.createdAt)
+      return dateB.getTime() - dateA.getTime()
+    })
   })
 
   const setZone = (zone: 'all' | 'experience' | 'question' | 'rescue' | 'mutual') => {
@@ -76,8 +82,8 @@ export const useHelpStore = defineStore('help', () => {
     isLoading.value = false
 
     if (error) {
-      console.warn('加载互助帖子失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '加载互助帖子失败')
+      return { success: false, message: result.message }
     }
 
     if (loadedPosts.length === 0) {
@@ -99,8 +105,8 @@ export const useHelpStore = defineStore('help', () => {
     isLoading.value = false
 
     if (error) {
-      console.warn('加载互助帖子详情失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '加载互助帖子详情失败')
+      return { success: false, message: result.message }
     }
 
     if (post) {
@@ -143,8 +149,8 @@ export const useHelpStore = defineStore('help', () => {
     isLoading.value = false
 
     if (error) {
-      console.warn('发布互助帖子失败:', error.message)
-      return { success: false, message: error.message }
+      const result = handleApiError(error, '发布互助帖子失败')
+      return { success: false, message: result.message }
     }
 
     if (post) {
@@ -167,7 +173,7 @@ export const useHelpStore = defineStore('help', () => {
     isLoading.value = false
 
     if (error) {
-      console.warn('发表回答失败:', error.message)
+      logger.warn('发表回答失败:', error.message)
       return { success: false, message: error.message }
     }
 
@@ -189,7 +195,7 @@ export const useHelpStore = defineStore('help', () => {
     isLoading.value = false
 
     if (error) {
-      console.warn('采纳回答失败:', error.message)
+      logger.warn('采纳回答失败:', error.message)
       return { success: false, message: error.message }
     }
 

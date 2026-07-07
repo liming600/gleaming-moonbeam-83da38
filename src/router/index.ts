@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -18,19 +19,19 @@ const routes: RouteRecordRaw[] = [
     path: '/post-create',
     name: 'PostCreate',
     component: () => import('@/pages/PostCreatePage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/diary-create',
     name: 'DiaryCreate',
     component: () => import('@/pages/DiaryCreatePage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/help-create',
     name: 'HelpCreate',
     component: () => import('@/pages/HelpCreatePage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/discover',
@@ -84,7 +85,7 @@ const routes: RouteRecordRaw[] = [
     path: '/messages',
     name: 'Messages',
     component: () => import('@/pages/MessagesPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/user/:id',
@@ -96,37 +97,49 @@ const routes: RouteRecordRaw[] = [
     path: '/settings',
     name: 'Settings',
     component: () => import('@/pages/SettingsPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/posts',
     name: 'UserPosts',
     component: () => import('@/pages/UserPostsPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/posts/:id',
     name: 'UserPostsById',
     component: () => import('@/pages/UserPostsPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/followers',
     name: 'Followers',
     component: () => import('@/pages/FollowersPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/followers/:id',
     name: 'FollowersById',
     component: () => import('@/pages/FollowersPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
   },
   {
     path: '/my-pets',
     name: 'MyPets',
     component: () => import('@/pages/MyPetsPage.vue'),
-    meta: { showTabBar: false }
+    meta: { showTabBar: false, requiresAuth: true }
+  },
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: () => import('@/pages/NotificationsPage.vue'),
+    meta: { showTabBar: false, requiresAuth: true }
+  },
+  {
+    path: '/chat/:id',
+    name: 'Chat',
+    component: () => import('@/pages/ChatPage.vue'),
+    meta: { showTabBar: false, requiresAuth: true }
   }
 ]
 
@@ -136,6 +149,25 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0 }
   }
+})
+
+router.beforeEach(async (to, _from, next) => {
+  const userStore = useUserStore()
+  
+  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    await userStore.autoLogin()
+    if (!userStore.isLoggedIn) {
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
+  
+  if ((to.name === 'Login' || to.name === 'Register') && userStore.isLoggedIn) {
+    next({ name: 'Home' })
+    return
+  }
+  
+  next()
 })
 
 export default router

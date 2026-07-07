@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { X, Medal } from 'lucide-vue-next'
-import { mockLeaderboard } from '@/mock/leaderboard'
+import { ref, onMounted } from 'vue'
+import { X, Medal, Loader2 } from 'lucide-vue-next'
+import { leaderboardService, type LeaderboardUser } from '@/services/leaderboardService'
 
 defineProps<{
   show: boolean
@@ -10,7 +11,18 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const leaderboard = mockLeaderboard
+const leaderboard = ref<LeaderboardUser[]>([])
+const isLoading = ref(true)
+
+onMounted(async () => {
+  isLoading.value = true
+  const { users, error } = await leaderboardService.getLeaderboard()
+  isLoading.value = false
+
+  if (!error && users.length > 0) {
+    leaderboard.value = users
+  }
+})
 
 const getRankStyle = (rank: number) => {
   switch (rank) {
@@ -58,6 +70,11 @@ const goToUserProfile = (_userId: string) => {
         </div>
 
         <div class="leaderboard-list">
+          <div v-if="isLoading" class="loading-container">
+            <Loader2 :size="24" class="loader" />
+            <span class="loading-text">加载中...</span>
+          </div>
+
           <div
             v-for="(user, index) in leaderboard"
             :key="user.id"
@@ -86,6 +103,12 @@ const goToUserProfile = (_userId: string) => {
               <div class="score-value">{{ user.accepted }}</div>
               <div class="score-label">采纳</div>
             </div>
+          </div>
+
+          <div v-if="!isLoading && leaderboard.length === 0" class="empty-state">
+            <Medal :size="48" class="empty-icon" />
+            <p class="empty-text">暂无榜单数据</p>
+            <p class="empty-hint">快来帮助其他宠友吧！</p>
           </div>
         </div>
 
@@ -169,6 +192,25 @@ const goToUserProfile = (_userId: string) => {
   padding: 12px 20px;
 }
 
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  gap: 12px;
+}
+
+.loader {
+  animation: spin 1s linear infinite;
+  color: #34D399;
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #A8A29E;
+}
+
 .leaderboard-item {
   display: flex;
   align-items: center;
@@ -200,6 +242,11 @@ const goToUserProfile = (_userId: string) => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .rank-badge {
@@ -280,6 +327,32 @@ const goToUserProfile = (_userId: string) => {
 .score-label {
   font-size: 11px;
   color: #A8A29E;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+}
+
+.empty-icon {
+  color: #E5E7EB;
+}
+
+.empty-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #57534E;
+  margin: 0;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #A8A29E;
+  margin: 0;
 }
 
 .modal-footer {

@@ -1,11 +1,12 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ArrowLeft, Camera } from 'lucide-vue-next'
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { ArrowLeft, Hand } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
 import { useFeedStore } from '@/stores/feedStore'
 import { useUiStore } from '@/stores/uiStore'
-import { storageService } from '@/services/storageService'
+import { useUserStore } from '@/stores/userStore'
+
 import PostCard from '@/components/PostCard.vue'
 
 const route = useRoute()
@@ -13,12 +14,12 @@ const router = useRouter()
 const petStore = usePetStore()
 const feedStore = useFeedStore()
 const uiStore = useUiStore()
+const userStore = useUserStore()
 
 const activeTab = ref<'posts' | 'growth'>('posts')
-const isFollowing = ref(false)
+const pawsCount = ref(0)
+const hasPawedToday = ref(false)
 const petId = computed(() => route.params.id as string)
-const petAvatarInput = ref<HTMLInputElement | null>(null)
-
 const expandedItems = ref<Set<string>>(new Set())
 
 const toggleExpand = (itemId: string) => {
@@ -42,7 +43,16 @@ const getMoodInfo = (mood: string) => {
   return moodMap[mood] || null
 }
 
-const pet = computed(() => petStore.getPetById(petId.value))
+const isLoading = ref(true)
+const pet = computed(() => {
+  const result = petStore.getPetById(petId.value)
+  if (result) {
+    isLoading.value = false
+  }
+  return result
+})
+
+
 
 const petPosts = computed(() => {
   const currentPet = pet.value
@@ -104,51 +114,48 @@ const back = () => {
   router.back()
 }
 
-const toggleFollow = () => {
-  isFollowing.value = !isFollowing.value
-  if (isFollowing.value) {
-    uiStore.showSuccessToast('关注成功')
+const handlePaw = async () => {
+  if (!userStore.isLoggedIn) {
+    uiStore.showWarningToast('请先登录')
+    router.push('/login')
+    return
+  }
+
+  const { success, message } = await petStore.addPetPaw(petId.value)
+  if (success) {
+    pawsCount.value++
+    hasPawedToday.value = true
+    uiStore.showSuccessToast(message)
   } else {
-    uiStore.showInfoToast('已取消关注')
+    uiStore.showWarningToast(message)
   }
 }
 
+const loadPawsData = async () => {
+  pawsCount.value = await petStore.getPetPawsCount(petId.value)
+  if (userStore.isLoggedIn) {
+    hasPawedToday.value = await petStore.checkHasPawedToday(petId.value)
+  }
+}
+
+onMounted(async () => {
+  await petStore.loadPetById(petId.value)
+  await feedStore.loadPostsByPet(petId.value)
+  await loadPawsData()
+})
+
 const handleImageError = (e: Event) => {
   const target = e.target as HTMLImageElement
-  target.src = 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pet%20placeholder&image_size=square'
+  target.src = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20placeholder&image_size=square'
 }
 
 const handleAvatarError = (e: Event) => {
   const target = e.target as HTMLImageElement
-  target.src = 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20cat%20avatar&image_size=square'
+  target.src = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square'
 }
 
 const goToOwner = (ownerId: string) => {
   router.push(`/user/${ownerId}`)
-}
-
-const handlePetAvatarUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  if (!petId.value) return
-
-  uiStore.showLoading('上传中...')
-
-  try {
-    const result = await storageService.uploadPetAvatar(file, petId.value)
-      if (result.url) {
-        await petStore.updatePetAvatar(petId.value, result.url)
-        uiStore.showSuccessToast('头像更换成功')
-      } else {
-        uiStore.showErrorToast('上传失败，请重试')
-      }
-  } catch (error) {
-    uiStore.showErrorToast('上传失败，请重试')
-  } finally {
-    target.value = ''
-  }
 }
 
 const tabs = [
@@ -167,66 +174,76 @@ const tabs = [
       <div class="header-placeholder"></div>
     </header>
 
-    <div v-if="pet" class="pet-header">
-      <div class="cover-image">
-        <img :src="pet.coverImage" :alt="pet.name" @error="handleImageError" />
+    <div v-if="isLoading" class="pet-profile-skeleton">
+      <div class="skeleton-cover"></div>
+      <div class="skeleton-avatar-container">
+        <div class="skeleton-avatar"></div>
+        <div class="skeleton-name"></div>
+        <div class="skeleton-info"></div>
+        <div class="skeleton-follow-btn"></div>
       </div>
-      <div class="avatar-container">
-        <div class="pet-avatar-wrapper">
-          <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
-          <button class="change-pet-avatar-btn" @click="petAvatarInput?.click()">
-            <Camera :size="14" />
+      <div class="skeleton-owner"></div>
+      <div class="skeleton-stats"></div>
+      <div class="skeleton-posts">
+        <div class="skeleton-post-card" v-for="i in 3" :key="i"></div>
+      </div>
+    </div>
+
+    <div v-else-if="pet" class="pet-header">
+      <div class="profile-card">
+        <div class="cover-wrapper">
+          <img :src="pet.coverImage || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pets%20collection%20cats%20dogs%20happy%20warm%20colorful&image_size=landscape_16_9'" :alt="pet.name" class="cover-image" @error="handleImageError" />
+          <div class="cover-overlay"></div>
+        </div>
+        <div class="avatar-section">
+          <div class="pet-avatar-wrapper">
+            <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
+          </div>
+          <div class="pet-info">
+            <div class="pet-name">{{ pet.name }}</div>
+            <div class="pet-meta">
+              <span>{{ pet.breed }}</span>
+              <span>·</span>
+              <span>{{ pet.age }}</span>
+              <span>·</span>
+              <span>🐾 已陪伴 {{ Math.floor((Date.now() - new Date(pet.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天</span>
+            </div>
+          </div>
+          <button class="paw-btn" :class="{ pawed: hasPawedToday }" @click="handlePaw">
+            <Hand :size="18" />
+            <span>{{ hasPawedToday ? '已击掌' : '击掌' }}</span>
           </button>
         </div>
-        <input ref="petAvatarInput" type="file" accept="image/*" class="pet-avatar-input" @change="handlePetAvatarUpload" />
-        <div class="pet-name">{{ pet.name }}</div>
-        <div class="pet-info">
-          <span>{{ pet.breed }}</span>
-          <span>·</span>
-          <span>{{ pet.age }}</span>
-          <span>·</span>
-          <span>🐾 已陪伴 {{ Math.floor((Date.now() - new Date(pet.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天</span>
-        </div>
-        <button class="follow-btn" :class="{ followed: isFollowing }" @click="toggleFollow">
-          {{ isFollowing ? '已关注' : '+ 关注' }}
-        </button>
-      </div>
 
-      <div class="owner-info" @click="goToOwner(pet.ownerId)">
-        <img :src="pet.ownerAvatar" :alt="pet.ownerName" class="owner-avatar" />
-        <div class="owner-detail">
-          <span class="owner-name">{{ pet.ownerName }}</span>
-          <span class="owner-label">主人</span>
+        <div class="owner-info" @click="goToOwner(pet.ownerId)">
+          <img :src="pet.ownerAvatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar%20friendly%20face&image_size=square'" :alt="pet.ownerName" class="owner-avatar" />
+          <div class="owner-detail">
+            <span class="owner-name">{{ pet.ownerName || '主人' }}</span>
+            <span class="owner-label">主人</span>
+          </div>
+          <span class="owner-arrow">›</span>
         </div>
-        <span class="owner-arrow">›</span>
+
+        <div class="stats-card">
+          <div class="stat-item">
+            <div class="stat-value">{{ pet.posts }}</div>
+            <div class="stat-label">帖子</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-value">{{ pet.likes }}</div>
+            <div class="stat-label">获赞</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-value">{{ pawsCount }}</div>
+            <div class="stat-label">击掌</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div v-if="pet" class="stats-card">
-      <div class="stat-item">
-        <div class="stat-icon">📝</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ pet.posts }}</div>
-          <div class="stat-label">帖子</div>
-        </div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <div class="stat-icon">❤️</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ pet.likes }}</div>
-          <div class="stat-label">获赞</div>
-        </div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <div class="stat-icon">👥</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ pet.followers }}</div>
-          <div class="stat-label">粉丝</div>
-        </div>
-      </div>
-    </div>
+    
 
     <div class="tab-container">
       <button
@@ -371,49 +388,64 @@ const tabs = [
   padding-top: 50px;
 }
 
-.cover-image {
-  width: 100%;
-  height: 150px;
+.profile-card {
+  background: #fff;
+  margin: 16px;
+  border-radius: 24px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.1);
 }
 
-.cover-image img {
+.cover-wrapper {
+  position: relative;
+  height: 120px;
+}
+
+.cover-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: -45px;
-  position: relative;
+.cover-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95), transparent);
 }
 
-.pet-avatar {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid transparent;
-  background: linear-gradient(#fff, #fff) padding-box,
-              linear-gradient(135deg, #F97316, #FB923C) border-box;
-  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2);
+.avatar-section {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 20px 20px;
+  margin-top: -50px;
+  position: relative;
 }
 
 .pet-avatar-wrapper {
   position: relative;
 }
 
+.pet-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+}
+
 .change-pet-avatar-btn {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 2px solid #fff;
   background: linear-gradient(135deg, #F97316, #FB923C);
   color: #fff;
   display: flex;
@@ -432,55 +464,62 @@ const tabs = [
   display: none;
 }
 
+.pet-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .pet-name {
-  margin-top: 12px;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #292524;
 }
 
-.pet-info {
-  margin-top: 8px;
-  font-size: 14px;
+.pet-meta {
+  margin-top: 4px;
+  font-size: 13px;
   color: #57534E;
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
-.follow-btn {
-  margin-top: 16px;
-  padding: 10px 32px;
-  background: linear-gradient(135deg, #F97316, #FB923C);
+.paw-btn {
+  padding: 8px 24px;
+  background: linear-gradient(135deg, #3B82F6, #60A5FA);
   color: #fff;
   border: none;
-  border-radius: 25px;
-  font-size: 15px;
+  border-radius: 20px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.follow-btn:active {
+.paw-btn:active {
   transform: scale(0.98);
 }
 
-.follow-btn.followed {
+.paw-btn.pawed {
   background: #F5F5F4;
   color: #57534E;
   box-shadow: none;
 }
 
 .owner-info {
-  margin: 16px;
+  margin: 0 16px 16px;
   padding: 12px;
-  background: #fff;
+  background: #FFF9F5;
   border-radius: 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.05);
   cursor: pointer;
 }
 
@@ -518,14 +557,13 @@ const tabs = [
 }
 
 .stats-card {
-  margin: 20px 16px;
-  background: #fff;
-  border-radius: 20px;
-  padding: 20px;
+  margin: 0 16px 16px;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.08);
+  background: #FFF9F5;
+  border-radius: 16px;
 }
 
 .stat-item {
@@ -534,14 +572,6 @@ const tabs = [
   align-items: center;
   gap: 8px;
   flex: 1;
-}
-
-.stat-icon {
-  font-size: 28px;
-}
-
-.stat-info {
-  text-align: center;
 }
 
 .stat-value {
@@ -820,5 +850,163 @@ const tabs = [
 
 .empty-state p {
   font-size: 14px;
+}
+
+.pet-profile-skeleton {
+  padding-top: 50px;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-cover {
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-avatar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -45px;
+  position: relative;
+}
+
+.skeleton-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+  border: 4px solid #fff;
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2);
+}
+
+.skeleton-name {
+  width: 40%;
+  height: 24px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-info {
+  width: 60%;
+  height: 14px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-follow-btn {
+  width: 120px;
+  height: 40px;
+  margin-top: 16px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-owner {
+  margin: 16px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 16px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-owner::before {
+  content: '';
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-owner::after {
+  content: '';
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skeleton-owner::after::before {
+  content: '';
+  width: 50%;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-owner::after::after {
+  content: '';
+  width: 30%;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-stats {
+  margin: 20px 16px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.skeleton-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeleton-stats > div::before {
+  content: '';
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-stats > div::after {
+  content: '';
+  width: 40px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(229, 229, 229, 0.3) 25%, rgba(229, 229, 229, 0.6) 50%, rgba(229, 229, 229, 0.3) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-posts {
+  padding: 0 16px;
+}
+
+.skeleton-post-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 </style>

@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, Plus, Camera } from 'lucide-vue-next'
+import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
-import { storageService } from '@/services/storageService'
+import { useUserStore } from '@/stores/userStore'
+
 import { useUiStore } from '@/stores/uiStore'
 
 const router = useRouter()
 const petStore = usePetStore()
+const userStore = useUserStore()
 const uiStore = useUiStore()
 
-const avatarInput = ref<HTMLInputElement | null>(null)
-const isUploading = ref(false)
+const isLoading = ref(false)
 
 const pets = computed(() => petStore.userPets)
 
@@ -27,32 +28,34 @@ const addPet = () => {
   router.push('/pet-create')
 }
 
-const handleAvatarUpload = async (event: Event, petId: string) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+const editPet = (petId: string) => {
+  router.push(`/pet-create?id=${petId}`)
+}
 
-  isUploading.value = true
-  uiStore.showLoading('上传中...')
-
+const deletePet = async (petId: string) => {
+  if (!confirm('确定要删除这个宠物吗？')) return
+  
+  uiStore.showLoading('删除中...')
   try {
-    const result = await storageService.uploadPetAvatar(file, petId)
-    if (result.url) {
-      await petStore.updatePetAvatar(petId, result.url)
-      uiStore.showSuccessToast('头像更新成功')
+    const { success } = await petStore.deletePet(petId)
+    if (success) {
+      uiStore.showSuccessToast('删除成功')
     } else {
-      uiStore.showErrorToast('上传失败')
+      uiStore.showErrorToast('删除失败')
     }
   } catch (error) {
-    uiStore.showErrorToast('上传失败')
-  } finally {
-    isUploading.value = false
-    target.value = ''
+    uiStore.showErrorToast('删除失败')
   }
 }
 
 onMounted(async () => {
+  if (!userStore.isLoggedIn) {
+    await userStore.autoLogin()
+  }
+  
+  isLoading.value = true
   await petStore.loadUserPets()
+  isLoading.value = false
 })
 </script>
 
@@ -69,7 +72,7 @@ onMounted(async () => {
     </div>
 
     <div class="page-content">
-      <div v-if="petStore.isLoading" class="loading-state">
+      <div v-if="isLoading" class="loading-state">
         <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
@@ -93,27 +96,23 @@ onMounted(async () => {
         >
           <div class="pet-avatar-wrapper">
             <img 
-              :src="pet.avatar || 'https://neeko-copilot.bytedance.net/api/text2image?prompt=cute%20pet%20avatar%20cartoon&image_size=square'" 
+              :src="pet.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20avatar%20cartoon&image_size=square'" 
               :alt="pet.name" 
               class="pet-avatar" 
             />
-            <button 
-              class="change-avatar-btn" 
-              @click.stop="avatarInput?.click()"
-              :disabled="isUploading"
-            >
-              <Camera :size="14" />
-            </button>
-            <input 
-              ref="avatarInput" 
-              type="file" 
-              accept="image/*" 
-              class="avatar-input" 
-              @change="(e) => handleAvatarUpload(e, pet.id)" 
-            />
           </div>
           <div class="pet-info">
-            <h4 class="pet-name">{{ pet.name }}</h4>
+            <div class="pet-name-row">
+              <h4 class="pet-name">{{ pet.name }}</h4>
+              <div class="pet-actions">
+                <button class="action-btn edit-btn" @click.stop="editPet(pet.id)">
+                  <Edit :size="14" />
+                </button>
+                <button class="action-btn delete-btn" @click.stop="deletePet(pet.id)">
+                  <Trash2 :size="14" />
+                </button>
+              </div>
+            </div>
             <p class="pet-breed">{{ pet.breed || '未知品种' }}</p>
           </div>
           <div class="pet-stats">
@@ -269,25 +268,42 @@ onMounted(async () => {
   border-radius: 16px;
 }
 
-.change-avatar-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
+.pet-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pet-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 3px solid #fff;
-  background: linear-gradient(135deg, #F97316, #FB923C);
-  color: #fff;
+  border: 2px solid #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
 }
 
-.avatar-input {
-  display: none;
+.action-btn:active {
+  transform: scale(0.9);
+}
+
+.edit-btn {
+  background: #3B82F6;
+  color: #fff;
+}
+
+.delete-btn {
+  background: #EF4444;
+  color: #fff;
 }
 
 .pet-info {

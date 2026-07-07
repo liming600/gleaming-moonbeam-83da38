@@ -27,16 +27,7 @@ const handleLogin = async () => {
 
   isLoading.value = true
 
-  // 演示账号登录：跳过邮箱格式验证，直接使用 demo / 123456
-  if (email.value === 'demo' && password.value === '123456') {
-    userStore.useDemoUser()
-    isLoading.value = false
-    uiStore.showSuccessToast('登录成功')
-    router.push('/')
-    return
-  }
-
-  // 正常登录：验证邮箱格式
+  // 验证邮箱格式
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value)) {
     uiStore.showWarningToast('请输入有效的邮箱地址')
@@ -56,7 +47,7 @@ const handleLogin = async () => {
 }
 
 const handleDemoLogin = () => {
-  email.value = 'demo'
+  email.value = 'user1@test.com'
   password.value = '123456'
   handleLogin()
 }
@@ -174,6 +165,7 @@ const goBack = () => {
   position: relative;
   z-index: 10;
   margin: 16px;
+  margin-top: calc(16px + env(safe-area-inset-top));
   width: 40px;
   height: 40px;
   border-radius: 50%;

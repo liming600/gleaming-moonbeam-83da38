@@ -55,7 +55,7 @@ const handleRegister = async () => {
 
   isLoading.value = true
 
-  const result = await userStore.register(email.value, password.value, username.value)
+  const result = await userStore.signUp(email.value, password.value, username.value)
   isLoading.value = false
 
   if (result.success) {
@@ -168,6 +168,7 @@ const goBack = () => {
   position: relative;
   z-index: 10;
   margin: 16px;
+  margin-top: calc(16px + env(safe-area-inset-top));
   width: 40px;
   height: 40px;
   border-radius: 50%;
