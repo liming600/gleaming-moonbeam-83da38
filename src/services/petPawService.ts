@@ -18,7 +18,8 @@ export const petPawService = {
         })
 
       if (error) {
-        if (error.code === '23505') {
+        // DB trigger check_paw_once_per_day raises P0001 (raise_exception)
+        if (error.code === 'P0001') {
           return { success: false, message: '今天已经给这只宠物击掌过了' }
         }
         return { success: false, message: error.message }

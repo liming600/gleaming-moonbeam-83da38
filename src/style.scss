@@ -1,10 +1,22 @@
 @import '@/theme/tokens.scss';
 
+:root {
+  --bg-primary: #FFF9F5;
+  --bg-card: #FFFFFF;
+  --text-primary: #292524;
+  --text-secondary: #57534E;
+  --text-light: #A8A29E;
+  --border-color: #E7E5E4;
+  --primary: #F97316;
+  --primary-light: #FB923C;
+  --danger: #EF4444;
+}
+
 page {
-  background-color: $color-background;
+  background-color: var(--bg-primary);
   font-family: $font-family;
   font-size: $font-size-base;
-  color: $color-text-primary;
+  color: var(--text-primary);
   line-height: $line-height-normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -16,7 +28,8 @@ page {
 
 #app {
   min-height: 100vh;
-  background-color: $color-background;
+  background-color: var(--bg-primary);
+  transition: background-color $transition-normal;
 }
 
 .page-content {

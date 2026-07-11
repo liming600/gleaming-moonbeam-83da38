@@ -29,7 +29,7 @@ const showTabBar = () => {
 <style scoped>
 .app-container {
   min-height: 100vh;
-  background-color: #FFF9F5;
+  background-color: inherit;
 }
 
 .page-enter-active,

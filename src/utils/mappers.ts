@@ -1,4 +1,5 @@
 import type { PostLocation } from '@/services/postService'
+import { generatePetAvatar } from './avatarGenerator'
 
 export interface ApiPost {
   id: string
@@ -15,7 +16,7 @@ export interface ApiPost {
   location_longitude?: number
   created_at: string
   date: string
-  pets?: { name: string; avatar_url: string; owner_id: string }
+  pets?: { name: string; avatar_url: string; owner_id: string; breed: string }
 }
 
 export interface FrontendPost {
@@ -45,7 +46,7 @@ export const mapApiPostToPost = (apiPost: ApiPost): FrontendPost => {
     id: apiPost.id,
     petId: apiPost.pet_id,
     petName: apiPost.pets?.name || '',
-    petAvatar: apiPost.pets?.avatar_url || '',
+    petAvatar: apiPost.pets?.avatar_url || (apiPost.pets?.breed ? generatePetAvatar(apiPost.pets.breed) : ''),
     ownerId: apiPost.pets?.owner_id || '',
     content: apiPost.content,
     images: apiPost.images || [],
@@ -107,7 +108,7 @@ export const mapApiPetToPet = (apiPet: ApiPet): FrontendPet => ({
   id: apiPet.id,
   ownerId: apiPet.owner_id,
   name: apiPet.name,
-  avatar: apiPet.avatar_url || '',
+  avatar: apiPet.avatar_url || (apiPet.breed ? generatePetAvatar(apiPet.breed) : ''),
   breed: apiPet.breed || '',
   gender: apiPet.gender || 'unknown',
   birthDate: apiPet.birth_date || '',

@@ -1,10 +1,15 @@
 import { supabase } from '@/supabase/supabaseClient'
+import type { AuthUser } from './authService'
 
 export interface Follow {
   id: string
   follower_id: string
   following_id: string
   created_at: string
+}
+
+export interface FollowWithUser extends Follow {
+  users: AuthUser
 }
 
 export const followService = {
@@ -64,11 +69,11 @@ export const followService = {
     }
   },
 
-  async getFollowers(userId: string): Promise<{ followers: any[]; error: Error | null }> {
+  async getFollowers(userId: string): Promise<{ followers: FollowWithUser[]; error: Error | null }> {
     try {
       const { data, error } = await supabase
         .from('follows')
-        .select('follower_id, users!inner(*)')
+        .select('*, users(*)')
         .eq('following_id', userId)
 
       if (error) {
@@ -81,11 +86,11 @@ export const followService = {
     }
   },
 
-  async getFollowing(userId: string): Promise<{ following: any[]; error: Error | null }> {
+  async getFollowing(userId: string): Promise<{ following: FollowWithUser[]; error: Error | null }> {
     try {
       const { data, error } = await supabase
         .from('follows')
-        .select('following_id, users!inner(*)')
+        .select('*, users(*)')
         .eq('follower_id', userId)
 
       if (error) {

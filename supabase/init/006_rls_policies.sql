@@ -31,6 +31,14 @@ CREATE POLICY "Users can update their own profile" ON users FOR UPDATE TO authen
 DROP POLICY IF EXISTS "Allow public view of user profiles" ON users;
 CREATE POLICY "Allow public view of user profiles" ON users FOR SELECT TO public USING (true);
 
+-- 允许认证用户创建自己的 profile（auth 触发器也用此策略）
+DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
+CREATE POLICY "Users can insert their own profile" ON users FOR INSERT TO authenticated WITH CHECK (id = auth.uid());
+
+-- 允许 service_role 绕过 RLS（触发器同步需要）
+DROP POLICY IF EXISTS "Service role can manage users" ON users;
+CREATE POLICY "Service role can manage users" ON users FOR ALL TO service_role USING (true) WITH CHECK (true);
+
 -- ------------------------------
 -- pets 表 RLS 策略
 -- ------------------------------
@@ -103,9 +111,19 @@ CREATE POLICY "Users can update their own comments" ON comments FOR UPDATE TO au
 DROP POLICY IF EXISTS "Users can delete their own comments" ON comments;
 CREATE POLICY "Users can delete their own comments" ON comments FOR DELETE TO authenticated USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Post owners can delete comments on their posts" ON comments;
+CREATE POLICY "Post owners can delete comments on their posts" ON comments FOR DELETE TO authenticated USING (
+  EXISTS (SELECT 1 FROM posts JOIN pets ON posts.pet_id = pets.id WHERE posts.id = comments.post_id AND pets.owner_id = auth.uid())
+);
+
 -- ------------------------------
 -- likes 表 RLS 策略
 -- ------------------------------
+
+DROP POLICY IF EXISTS "Allow public view of likes" ON likes;
+CREATE POLICY "Allow public view of likes" ON likes FOR SELECT TO public USING (
+  EXISTS (SELECT 1 FROM posts WHERE posts.id = likes.post_id AND posts.post_type = 'public')
+);
 
 DROP POLICY IF EXISTS "Allow view of likes" ON likes;
 CREATE POLICY "Allow view of likes" ON likes FOR SELECT TO authenticated USING (

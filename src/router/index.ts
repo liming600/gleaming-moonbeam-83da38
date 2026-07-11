@@ -130,6 +130,12 @@ const routes: RouteRecordRaw[] = [
     meta: { showTabBar: false, requiresAuth: true }
   },
   {
+    path: '/edit-profile',
+    name: 'EditProfile',
+    component: () => import('@/pages/EditProfilePage.vue'),
+    meta: { showTabBar: false, requiresAuth: true }
+  },
+  {
     path: '/notifications',
     name: 'Notifications',
     component: () => import('@/pages/NotificationsPage.vue'),

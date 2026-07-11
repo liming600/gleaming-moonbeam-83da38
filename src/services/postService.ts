@@ -20,10 +20,10 @@ const COMMENTS_SELECT = `
   users(name, avatar_url)
 `
 
-async function fetchPetInfo(petId: string): Promise<{ name: string; avatar_url: string; owner_id: string } | null> {
+async function fetchPetInfo(petId: string): Promise<{ name: string; avatar_url: string; owner_id: string; breed: string } | null> {
   const { data, error } = await supabase
     .from('pets')
-    .select('name, avatar_url, owner_id')
+    .select('name, avatar_url, owner_id, breed')
     .eq('id', petId)
     .single()
 
@@ -34,7 +34,8 @@ async function fetchPetInfo(petId: string): Promise<{ name: string; avatar_url: 
   return {
     name: data.name,
     avatar_url: data.avatar_url || '',
-    owner_id: data.owner_id || ''
+    owner_id: data.owner_id || '',
+    breed: data.breed || ''
   }
 }
 
@@ -114,7 +115,7 @@ export const postService = {
   },
 
   async createPost(post: Omit<Post, 'id' | 'likes' | 'comments' | 'createdAt' | 'petName' | 'petAvatar' | 'isLiked'>): Promise<{ post: Post | null; error: Error | null }> {
-    const postType = post.isDiary ? 'diary' : (post.isPublic ? 'public' : 'private')
+    const postType = post.isDiary ? 'diary' : 'public'
     
     const { data, error } = await executeSingleQuery<ApiPost>(
       supabase
@@ -165,34 +166,30 @@ export const postService = {
   },
 
   async createComment(postId: string, userId: string, content: string): Promise<{ comment: Comment | null; error: Error | null }> {
-    const { data, error } = await executeSingleQuery<ApiComment>(
-      supabase
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      console.log('[PostService] createComment - Supabase auth user:', authData?.user?.id, 'User ID:', userId)
+
+      const { data, error } = await supabase
         .from('comments')
         .insert({ post_id: postId, user_id: userId, content })
         .select(COMMENTS_SELECT)
         .single()
-    )
 
-    if (error) {
-      return { comment: null, error }
-    }
-
-    if (data) {
-      const { data: post } = await supabase
-        .from('posts')
-        .select('comments_count')
-        .eq('id', postId)
-        .single()
-
-      if (post) {
-        await supabase
-          .from('posts')
-          .update({ comments_count: post.comments_count + 1 })
-          .eq('id', postId)
+      if (error) {
+        console.error('[PostService] createComment error:', error)
+        console.error('[PostService] createComment error code:', (error as any)?.code)
+        console.error('[PostService] createComment error details:', (error as any)?.details)
+        return { comment: null, error }
       }
-    }
 
-    return { comment: data ? mapApiCommentToComment(data) : null, error: null }
+      console.log('[PostService] createComment success:', data?.id)
+      return { comment: data ? mapApiCommentToComment(data) : null, error: null }
+    } catch (error) {
+      console.error('[PostService] createComment exception:', error)
+      console.error('[PostService] createComment exception stack:', (error as Error).stack)
+      return { comment: null, error: error as Error }
+    }
   },
 
   async toggleLike(postId: string, userId: string): Promise<{ isLiked: boolean; error: Error | null }> {
@@ -211,34 +208,13 @@ export const postService = {
       const existingLike = likesData && likesData.length > 0 ? likesData[0] : null
 
       if (existingLike) {
+        // DB trigger (trigger_update_post_likes) handles likes_count decrement
         await supabase.from('likes').delete().eq('id', existingLike.id)
-        const { data: post } = await supabase
-          .from('posts')
-          .select('likes_count')
-          .eq('id', postId)
-          .single()
-        if (post) {
-          await supabase
-            .from('posts')
-            .update({ likes_count: Math.max(0, post.likes_count - 1) })
-            .eq('id', postId)
-        }
         return { isLiked: false, error: null }
       }
 
+      // DB trigger (trigger_update_post_likes) handles likes_count increment
       await supabase.from('likes').insert({ post_id: postId, user_id: userId })
-      const { data: post } = await supabase
-        .from('posts')
-        .select('likes_count')
-        .eq('id', postId)
-        .single()
-      if (post) {
-        await supabase
-          .from('posts')
-          .update({ likes_count: post.likes_count + 1 })
-          .eq('id', postId)
-      }
-
       return { isLiked: true, error: null }
     } catch (error) {
       return { isLiked: false, error: error as Error }
@@ -283,42 +259,66 @@ export const postService = {
 
   async deleteComment(commentId: string): Promise<{ success: boolean; error: Error | null }> {
     try {
-      const { data: commentData, error: selectError } = await supabase
-        .from('comments')
-        .select('post_id')
-        .eq('id', commentId)
-        .single()
-
-      if (selectError) {
-        return { success: false, error: selectError }
-      }
-
-      const { error: deleteError } = await supabase
+      const { error, count } = await supabase
         .from('comments')
         .delete()
         .eq('id', commentId)
+        .select()
 
-      if (deleteError) {
-        return { success: false, error: deleteError }
+      if (error) {
+        return { success: false, error }
       }
 
-      if (commentData?.post_id) {
-        const { data: post } = await supabase
-          .from('posts')
-          .select('comments_count')
-          .eq('id', commentData.post_id)
-          .single()
-        if (post) {
-          await supabase
-            .from('posts')
-            .update({ comments_count: Math.max(0, post.comments_count - 1) })
-            .eq('id', commentData.post_id)
-        }
+      if (count === 0) {
+        return { success: false, error: new Error('评论不存在或无权限删除') }
       }
 
       return { success: true, error: null }
     } catch (error) {
       return { success: false, error: error as Error }
+    }
+  },
+
+  async updatePost(postId: string, postData: Partial<Omit<Post, 'id' | 'likes' | 'comments' | 'createdAt' | 'petName' | 'petAvatar' | 'isLiked' | 'ownerId'>>): Promise<{ post: Post | null; error: Error | null }> {
+    try {
+      const postType = postData.isDiary ? 'diary' : postData.isPublic ? 'public' : undefined
+
+      const { data, error } = await executeSingleQuery<ApiPost>(
+        supabase
+          .from('posts')
+          .update({
+            content: postData.content,
+            images: postData.images,
+            tags: postData.tags,
+            post_type: postType,
+            mood: postData.mood,
+            location_address: postData.location?.address,
+            location_latitude: postData.location?.latitude,
+            location_longitude: postData.location?.longitude,
+            date: postData.date
+          })
+          .eq('id', postId)
+          .select(POSTS_SELECT)
+          .single()
+      )
+
+      if (error) {
+        return { post: null, error }
+      }
+
+      if (data) {
+        if (!data.pets || !data.pets.name) {
+          const petInfo = await fetchPetInfo(data.pet_id)
+          if (petInfo) {
+            data.pets = petInfo
+          }
+        }
+        return { post: mapApiPostToPost(data), error: null }
+      }
+
+      return { post: null, error: null }
+    } catch (error) {
+      return { post: null, error: error as Error }
     }
   }
 }

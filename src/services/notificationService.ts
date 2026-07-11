@@ -81,25 +81,5 @@ export const notificationService = {
     } catch (error) {
       return { count: 0, error: error as Error }
     }
-  },
-
-  async createNotification(userId: string, type: string, relatedId: string | null): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: userId,
-          type,
-          related_id: relatedId
-        })
-
-      if (error) {
-        return { success: false, error }
-      }
-
-      return { success: true, error: null }
-    } catch (error) {
-      return { success: false, error: error as Error }
-    }
   }
 }

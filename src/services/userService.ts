@@ -7,6 +7,8 @@ export interface User {
   name: string
   avatar_url: string | null
   bio: string | null
+  gender: string | null
+  age: string | null
   posts_count: number
   followers_count: number
   following_count: number
@@ -52,6 +54,23 @@ export const userService = {
       }
     } catch (error) {
       return { following: 0, followers: 0, pets: 0, error: error as Error }
+    }
+  },
+
+  async updateUserProfile(userId: string, profileData: Partial<User>): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(profileData)
+        .eq('id', userId)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
     }
   }
 }

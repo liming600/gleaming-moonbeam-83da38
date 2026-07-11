@@ -157,12 +157,9 @@ async function initDatabase() {
   console.log('初始化数据库表结构...')
 
   const alterQueries = [
-    'ALTER TABLE users ALTER COLUMN name DROP NOT NULL',
-    'ALTER TABLE users ALTER COLUMN email DROP NOT NULL',
-    'ALTER TABLE users ALTER COLUMN avatar_url DROP NOT NULL',
-    'DROP TRIGGER IF EXISTS trigger_auth_user_insert ON auth.users',
-    'DROP TRIGGER IF EXISTS trigger_auth_user_update ON auth.users',
-    'DROP TRIGGER IF EXISTS trigger_auth_user_delete ON auth.users'
+    'ALTER TABLE IF EXISTS users ALTER COLUMN name DROP NOT NULL',
+    'ALTER TABLE IF EXISTS users ALTER COLUMN email DROP NOT NULL',
+    'ALTER TABLE IF EXISTS users ALTER COLUMN avatar_url DROP NOT NULL'
   ]
 
   for (const query of alterQueries) {

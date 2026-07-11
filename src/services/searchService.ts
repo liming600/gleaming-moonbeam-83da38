@@ -2,6 +2,7 @@ import { supabase } from '@/supabase/supabaseClient'
 import type { Post } from '@/services/postService'
 import type { Pet } from '@/services/petService'
 import type { AuthUser } from '@/services/authService'
+import { mapApiPostToPost } from '@/utils/mappers'
 
 export interface SearchResult {
   type: 'pet' | 'user' | 'post'
@@ -49,7 +50,10 @@ export const searchService = {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          pets(name, avatar_url, owner_id, breed)
+        `)
         .or(`content.ilike.%${query}%,tags.ilike.%${query}%`)
         .limit(10)
 
@@ -57,7 +61,8 @@ export const searchService = {
         return { posts: [], error }
       }
 
-      return { posts: data || [], error: null }
+      const posts = (data || []).map(mapApiPostToPost)
+      return { posts, error: null }
     } catch (error) {
       return { posts: [], error: error as Error }
     }

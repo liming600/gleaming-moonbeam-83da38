@@ -105,8 +105,8 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   z-index: 100;
-  background: #fff;
-  border-top: 1px solid #F5F5F4;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -143,7 +143,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #A8A29E;
+  color: var(--text-light);
   transition: all 0.2s ease;
 }
 
@@ -151,14 +151,14 @@ onUnmounted(() => {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #F97316, #FB923C);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: #fff;
   box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
   transition: all 0.3s ease;
 }
 
 .tab-item.active .icon-wrapper:not(.center-icon) {
-  color: #F97316;
+  color: var(--primary);
 }
 
 .tab-item.active.center-btn .icon-wrapper.center-icon {
@@ -168,12 +168,12 @@ onUnmounted(() => {
 
 .tab-label {
   font-size: 11px;
-  color: #A8A29E;
+  color: var(--text-light);
   transition: color 0.2s ease;
 }
 
 .tab-item.active .tab-label {
-  color: #F97316;
+  color: var(--primary);
   font-weight: 500;
 }
 

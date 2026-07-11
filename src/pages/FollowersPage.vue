@@ -11,9 +11,12 @@ const userStore = useUserStore()
 
 const type = computed(() => route.query.type as string || 'followers')
 const pageUserId = computed(() => route.params.id as string)
+const targetUserName = ref('')
+
 const pageTitle = computed(() => {
   if (pageUserId.value) {
-    return type.value === 'followers' ? '粉丝' : '关注'
+    const prefix = targetUserName.value ? `${targetUserName.value}的` : '他的'
+    return type.value === 'followers' ? `${prefix}粉丝` : `${prefix}关注`
   }
   return type.value === 'followers' ? '我的粉丝' : '我的关注'
 })
@@ -57,6 +60,16 @@ const loadFollowers = async () => {
   }
   
   const userId = route.params.id as string || userStore.currentUser.id
+  
+  if (route.params.id) {
+    const { data: targetUser } = await supabase.from('users')
+      .select('name')
+      .eq('id', userId)
+      .single()
+    if (targetUser) {
+      targetUserName.value = targetUser.name
+    }
+  }
   
   let userIds: string[] = []
   

@@ -34,8 +34,6 @@ const getStatusStyle = (status: string) => {
   switch (status) {
     case 'resolved':
       return 'bg-green-100 text-green-600'
-    case 'taken':
-      return 'bg-blue-100 text-blue-600'
     default:
       return 'bg-orange-100 text-orange-600'
   }
@@ -45,8 +43,6 @@ const getStatusLabel = (status: string) => {
   switch (status) {
     case 'resolved':
       return '已解决'
-    case 'taken':
-      return '已接单'
     default:
       return '求助中'
   }
@@ -128,7 +124,11 @@ const closeTipModal = () => {
             </div>
             <span class="post-time">{{ post.createdAt }}</span>
           </div>
-          <span class="status-tag" :class="getStatusStyle(post.status)">
+          <span 
+            v-if="post.zone !== 'experience'" 
+            class="status-tag" 
+            :class="getStatusStyle(post.status)"
+          >
             {{ getStatusLabel(post.status) }}
           </span>
         </div>
@@ -148,7 +148,7 @@ const closeTipModal = () => {
           </div>
         </div>
 
-        <div v-if="post.acceptedAnswer" class="accepted-answer">
+        <div v-if="post.zone !== 'experience' && post.acceptedAnswer" class="accepted-answer">
           <span class="accepted-label">💡 采纳答案：</span>
           <span class="accepted-text">{{ post.acceptedAnswer }}</span>
         </div>

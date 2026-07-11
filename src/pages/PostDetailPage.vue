@@ -1,12 +1,13 @@
-﻿﻿﻿﻿<script setup lang="ts">
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, Heart, MessageCircle, Share2, Send } from 'lucide-vue-next'
+import { ArrowLeft, Heart, MessageCircle, Share2, Send, Trash2, Edit3 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { useFeedStore } from '@/stores/feedStore'
 import { postService, type Comment } from '@/services/postService'
 import { logger } from '@/utils/logger'
 import { useUserStore } from '@/stores/userStore'
 import { useUiStore } from '@/stores/uiStore'
+import ActionMenu from '@/components/ActionMenu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,7 +22,17 @@ const isLoadingComments = ref(false)
 const postId = computed(() => route.params.id as string)
 
 const formatDate = (dateString: string): string => {
+  if (!dateString) return ''
+  const relativeTimePatterns = ['刚刚', '分钟前', '小时前', '昨天', '天前']
+  if (relativeTimePatterns.some(pattern => dateString.includes(pattern))) {
+    return dateString
+  }
+  
   const date = new Date(dateString)
+  if (isNaN(date.getTime())) {
+    return dateString
+  }
+  
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const minutes = Math.floor(diff / 60000)
@@ -36,9 +47,31 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString('zh-CN')
 }
 
+const localPost = ref<typeof feedStore.posts[0] | null>(null)
+
 const post = computed(() => {
-  return feedStore.posts.find(p => p.id === postId.value)
+  return localPost.value || feedStore.posts.find(p => p.id === postId.value)
 })
+
+const isOwner = computed(() => {
+  if (!post.value || !userStore.currentUser) return false
+  return post.value.ownerId === userStore.currentUser.id
+})
+
+const postMenuItems = computed(() => {
+  return [
+    { icon: Edit3, label: '编辑', action: editPost },
+    { icon: Trash2, label: '删除', action: deletePost, danger: true }
+  ]
+})
+
+const handlePostMenuSelect = (item: { label: string; action: () => void | Promise<void> }) => {
+  item.action()
+}
+
+const handleCommentMenuSelect = (item: { label: string; action: () => void | Promise<void> }) => {
+  item.action()
+}
 
 const back = () => {
   router.back()
@@ -77,16 +110,25 @@ const loadComments = async () => {
   comments.value = loadedComments
 }
 
+const isSubmittingComment = ref(false)
+
 const submitComment = async () => {
   if (!commentText.value.trim()) return
+  if (isSubmittingComment.value) return
 
-  const { success, message } = await feedStore.addComment(postId.value, commentText.value)
+  isSubmittingComment.value = true
 
-  if (success) {
-    commentText.value = ''
-    await loadComments()
-  } else {
-    logger.warn('评论失败:', message)
+  try {
+    const { success, message } = await feedStore.addComment(postId.value, commentText.value)
+
+    if (success) {
+      commentText.value = ''
+      await loadComments()
+    } else {
+      logger.warn('评论失败:', message)
+    }
+  } finally {
+    isSubmittingComment.value = false
   }
 }
 
@@ -98,19 +140,64 @@ const canDeleteComment = (comment: Comment): boolean => {
 }
 
 const deleteComment = async (commentId: string) => {
-  if (!confirm('确定要删除这条评论吗？')) return
-
-  const { success, message } = await feedStore.deleteComment(commentId, postId.value)
-  if (success) {
-    comments.value = comments.value.filter(c => c.id !== commentId)
-    uiStore.showSuccessToast('删除成功')
-  } else {
-    uiStore.showErrorToast(message)
+  try {
+    console.log('[PostDetail] 开始删除评论:', commentId)
+    const { success, message } = await feedStore.deleteComment(commentId, postId.value)
+    console.log('[PostDetail] 删除评论结果:', success, message)
+    if (success) {
+      comments.value = comments.value.filter(c => c.id !== commentId)
+      uiStore.showSuccessToast('删除成功')
+    } else {
+      uiStore.showErrorToast(message || '删除失败')
+    }
+  } catch (error) {
+    console.error('[PostDetail] 删除评论出错:', error)
+    uiStore.showErrorToast('删除失败，请稍后重试')
   }
+}
+
+const handleCommentLongPress = (comment: Comment) => {
+  if (!canDeleteComment(comment)) return
+  deleteComment(comment.id)
+}
+
+const deletePost = async () => {
+  try {
+    console.log('[PostDetail] 开始删除帖子:', postId.value)
+    const { success, message } = await feedStore.deletePost(postId.value)
+    console.log('[PostDetail] 删除帖子结果:', success, message)
+    if (success) {
+      uiStore.showSuccessToast('删除成功')
+      setTimeout(() => {
+        router.back()
+      }, 1000)
+    } else {
+      uiStore.showErrorToast(message || '删除失败')
+    }
+  } catch (error) {
+    console.error('[PostDetail] 删除帖子出错:', error)
+    uiStore.showErrorToast('删除失败，请稍后重试')
+  }
+}
+
+const editPost = () => {
+  router.push(`/post-create?id=${postId.value}`)
 }
 
 onMounted(async () => {
   await feedStore.loadPostById(postId.value)
+  
+  if (!post.value) {
+    try {
+      const { post: fetchedPost } = await postService.getPostById(postId.value)
+      if (fetchedPost) {
+        localPost.value = fetchedPost
+      }
+    } catch (e) {
+      console.error('[PostDetail] Failed to load post by ID:', e)
+    }
+  }
+  
   loadComments()
 })
 </script>
@@ -165,6 +252,9 @@ onMounted(async () => {
           <Share2 :size="24" />
           <span>分享</span>
         </button>
+        <div v-if="isOwner" class="action-menu-wrapper">
+          <ActionMenu :items="postMenuItems" @select="handlePostMenuSelect" />
+        </div>
       </div>
     </div>
 
@@ -179,7 +269,13 @@ onMounted(async () => {
         <span>暂无评论，快来抢沙发吧~</span>
       </div>
 
-      <div v-else v-for="comment in comments" :key="comment.id" class="comment-item">
+      <div 
+        v-else 
+        v-for="comment in comments" 
+        :key="comment.id" 
+        class="comment-item"
+        @contextmenu.prevent="canDeleteComment(comment) && handleCommentLongPress(comment)"
+      >
         <img
           :src="comment.user_avatar"
           :alt="comment.user_name"
@@ -191,13 +287,14 @@ onMounted(async () => {
             <span class="comment-author">{{ comment.user_name }}</span>
             <div class="comment-header-right">
               <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
-              <button 
-                v-if="canDeleteComment(comment)" 
-                class="comment-delete-btn" 
-                @click="deleteComment(comment.id)"
-              >
-                删除
-              </button>
+              <div v-if="canDeleteComment(comment)" class="comment-action-menu">
+                <ActionMenu 
+                  :items="[
+                    { icon: Trash2, label: '删除评论', action: () => deleteComment(comment.id), danger: true }
+                  ]" 
+                  @select="handleCommentMenuSelect"
+                />
+              </div>
             </div>
           </div>
           <p class="comment-text">{{ comment.content }}</p>
@@ -313,14 +410,19 @@ onMounted(async () => {
 }
 
 .post-images {
-  margin-bottom: 16px;
+  margin-bottom: clamp(12px, 3vw, 16px);
 }
 
 .post-image {
   width: 100%;
-  border-radius: 16px;
+  border-radius: clamp(12px, 3vw, 16px);
   object-fit: cover;
-  margin-bottom: 8px;
+  max-height: clamp(200px, 50vw, 400px);
+  margin-bottom: clamp(6px, 1.5vw, 8px);
+}
+
+.post-image:last-child {
+  margin-bottom: 0;
 }
 
 .post-tags {

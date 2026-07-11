@@ -1,6 +1,6 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Settings, LogOut, Camera, ArrowLeft, Users } from 'lucide-vue-next'
+import { Settings, Camera, ArrowLeft } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { usePetStore } from '@/stores/petStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -46,9 +46,7 @@ const goToLogin = () => {
   router.push('/login')
 }
 
-const handleLogout = () => {
-  userStore.logout()
-}
+
 
 const handleAvatarUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -105,7 +103,7 @@ const handleAvatarUpload = async (event: Event) => {
             <input ref="avatarInput" type="file" accept="image/*" class="avatar-input" @change="handleAvatarUpload" />
           </div>
           <div class="profile-info">
-            <div class="user-name" @click="router.push('/settings')">{{ user.name }}</div>
+            <div class="user-name" @click="router.push('/edit-profile')">{{ user.name }}</div>
             <p class="user-desc">{{ user.bio || '这家伙很懒，什么都没写~' }}</p>
           </div>
           <div class="self-badge">我的主页</div>
@@ -144,7 +142,6 @@ const handleAvatarUpload = async (event: Event) => {
     <div v-if="user" class="section">
       <div class="section-header">
         <h3 class="section-title">🐾 我的宠物</h3>
-        <Users :size="18" class="section-icon" />
       </div>
       <div class="pet-grid">
         <div
@@ -192,19 +189,13 @@ const handleAvatarUpload = async (event: Event) => {
       </div>
     </div>
 
-    <div v-if="user" class="section">
-      <button class="logout-btn" @click="handleLogout">
-        <LogOut :size="20" />
-        <span>退出登录</span>
-      </button>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background-color: #FFF9F5;
+  background-color: var(--bg-primary);
   padding-bottom: 80px;
 }
 
@@ -216,7 +207,7 @@ const handleAvatarUpload = async (event: Event) => {
   z-index: 100;
   background: rgba(255, 249, 245, 0.95);
   backdrop-filter: blur(10px);
-  padding: 16px;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -227,8 +218,8 @@ const handleAvatarUpload = async (event: Event) => {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #fff;
-  color: #292524;
+  background: var(--bg-card);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,7 +230,7 @@ const handleAvatarUpload = async (event: Event) => {
 .header-title {
   font-size: 18px;
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
 }
 
 .settings-btn {
@@ -247,8 +238,8 @@ const handleAvatarUpload = async (event: Event) => {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #fff;
-  color: #292524;
+  background: var(--bg-card);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,11 +248,11 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .user-header {
-  padding-top: 50px;
+  padding-top: calc(env(safe-area-inset-top) + 52px);
 }
 
 .profile-card {
-  background: #fff;
+  background: var(--bg-card);
   margin: 16px;
   border-radius: 24px;
   overflow: hidden;
@@ -271,12 +262,14 @@ const handleAvatarUpload = async (event: Event) => {
 .cover-wrapper {
   position: relative;
   height: 120px;
+  background: linear-gradient(135deg, #F97316, #FB923C);
 }
 
 .cover-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
 }
 
 .cover-overlay {
@@ -298,11 +291,11 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .user-avatar {
-  width: 90px;
-  height: 90px;
+  width: clamp(70px, 20vw, 90px);
+  height: clamp(70px, 20vw, 90px);
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #fff;
+  border: 3px solid var(--bg-card);
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
   flex-shrink: 0;
 }
@@ -315,11 +308,11 @@ const handleAvatarUpload = async (event: Event) => {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 28px;
-  height: 28px;
+  width: clamp(24px, 6vw, 28px);
+  height: clamp(24px, 6vw, 28px);
   border-radius: 50%;
-  border: 3px solid #fff;
-  background: linear-gradient(135deg, #F97316, #FB923C);
+  border: 3px solid var(--bg-card);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: #fff;
   display: flex;
   align-items: center;
@@ -338,27 +331,30 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .user-name {
-  font-size: 20px;
+  font-size: clamp(18px, 4.5vw, 22px);
   font-weight: 700;
-  color: #292524;
+  color: var(--text-primary);
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-desc {
   margin-top: 4px;
-  font-size: 13px;
-  color: #57534E;
+  font-size: clamp(12px, 3vw, 14px);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .self-badge {
-  padding: 8px 24px;
-  background: #F5F5F4;
-  color: #A8A29E;
+  padding: 6px 16px;
+  background: var(--border-color);
+  color: var(--text-light);
   border-radius: 20px;
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -369,7 +365,7 @@ const handleAvatarUpload = async (event: Event) => {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: #FFF9F5;
+  background: var(--bg-primary);
   border-radius: 16px;
 }
 
@@ -383,24 +379,24 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: clamp(18px, 4vw, 22px);
   font-weight: 700;
-  color: #292524;
+  color: var(--text-primary);
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #A8A29E;
+  font-size: clamp(11px, 2.5vw, 12px);
+  color: var(--text-light);
 }
 
 .stat-divider {
   width: 1px;
   height: 40px;
-  background: #F5F5F4;
+  background: var(--border-color);
 }
 
 .section {
-  background: #fff;
+  background: var(--bg-card);
   margin: 16px;
   padding: 16px;
   border-radius: 20px;
@@ -415,13 +411,13 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: clamp(14px, 3.5vw, 16px);
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
 }
 
 .section-icon {
-  color: #F97316;
+  color: var(--primary);
 }
 
 .pet-grid {
@@ -431,37 +427,46 @@ const handleAvatarUpload = async (event: Event) => {
   padding-bottom: 8px;
 }
 
+.pet-grid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
+
 .pet-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   padding: 12px;
-  background: #FFF9F5;
+  background: var(--bg-primary);
   border-radius: 16px;
   cursor: pointer;
-  min-width: 80px;
+  min-width: clamp(70px, 20vw, 90px);
+  flex-shrink: 0;
 }
 
 .pet-card .pet-avatar {
-  width: 60px;
-  height: 60px;
+  width: clamp(50px, 14vw, 70px);
+  height: clamp(50px, 14vw, 70px);
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid transparent;
-  background: linear-gradient(#fff, #fff) padding-box,
-              linear-gradient(135deg, #F97316, #FB923C) border-box;
+  background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+              linear-gradient(135deg, var(--primary), var(--primary-light)) border-box;
 }
 
 .pet-card .pet-name {
-  font-size: 13px;
-  color: #292524;
+  font-size: clamp(12px, 3vw, 14px);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .pet-card .pet-followers {
-  font-size: 11px;
-  color: #A8A29E;
+  font-size: clamp(10px, 2.5vw, 11px);
+  color: var(--text-light);
 }
 
 .empty-pets {
@@ -469,16 +474,16 @@ const handleAvatarUpload = async (event: Event) => {
   flex-direction: column;
   align-items: center;
   padding: 20px 30px;
-  color: #A8A29E;
+  color: var(--text-light);
 }
 
 .empty-icon {
-  font-size: 32px;
+  font-size: clamp(28px, 8vw, 36px);
   margin-bottom: 8px;
 }
 
 .empty-pets p {
-  font-size: 13px;
+  font-size: clamp(12px, 3vw, 14px);
 }
 
 .posts-section {
@@ -486,7 +491,7 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .help-post-item {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 12px;
@@ -505,22 +510,22 @@ const handleAvatarUpload = async (event: Event) => {
 .help-post-zone {
   padding: 4px 12px;
   background: rgba(249, 115, 22, 0.1);
-  color: #F97316;
+  color: var(--primary);
   border-radius: 12px;
-  font-size: 12px;
+  font-size: clamp(11px, 2.8vw, 12px);
   font-weight: 500;
 }
 
 .help-post-title {
-  font-size: 16px;
+  font-size: clamp(14px, 3.5vw, 16px);
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .help-post-content {
-  font-size: 14px;
-  color: #57534E;
+  font-size: clamp(13px, 3vw, 14px);
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 12px;
   display: -webkit-box;
@@ -536,8 +541,8 @@ const handleAvatarUpload = async (event: Event) => {
 }
 
 .meta-item {
-  font-size: 13px;
-  color: #A8A29E;
+  font-size: clamp(12px, 2.8vw, 13px);
+  color: var(--text-light);
 }
 
 .empty-state {
@@ -546,19 +551,19 @@ const handleAvatarUpload = async (event: Event) => {
   align-items: center;
   justify-content: center;
   padding: 48px;
-  color: #A8A29E;
+  color: var(--text-light);
 }
 
 .empty-state .empty-icon {
-  font-size: 48px;
+  font-size: clamp(40px, 10vw, 52px);
 }
 
 .empty-state p {
-  font-size: 14px;
+  font-size: clamp(13px, 3vw, 14px);
 }
 
 .guest-header {
-  padding-top: 50px;
+  padding-top: calc(env(safe-area-inset-top) + 52px);
 }
 
 .guest-header .page-content {

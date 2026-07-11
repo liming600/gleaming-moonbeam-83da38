@@ -1,9 +1,10 @@
-﻿﻿﻿﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService, type AuthUser } from '@/services/authService'
 import { handleAuthError } from '@/utils/errorHandler'
 import { logger } from '@/utils/logger'
 import { supabase } from '@/supabase/supabaseClient'
+import router from '@/router'
 
 export const useUserStore = defineStore('user', () => {
   const isLoggedIn = ref(false)
@@ -89,6 +90,17 @@ export const useUserStore = defineStore('user', () => {
     await authService.signOut()
     isLoggedIn.value = false
     currentUser.value = null
+    profileStats.value = {
+      following: 0,
+      posts: 0,
+      points: 0,
+      likes: 0,
+      followers: 0,
+      mutualHelps: 0,
+      notificationCount: 0
+    }
+    localStorage.removeItem('petcircle_user')
+    router.push('/login')
   }
 
   const autoLogin = async () => {
@@ -162,6 +174,23 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  const updateProfile = async (profileData: Partial<AuthUser>) => {
+    if (!currentUser.value) {
+      return { success: false, message: '请先登录' }
+    }
+
+    isLoading.value = true
+    const { error } = await authService.updateUserProfile({ id: currentUser.value.id, ...profileData })
+    isLoading.value = false
+
+    if (error) {
+      return { success: false, message: error.message }
+    }
+
+    currentUser.value = { ...currentUser.value, ...profileData }
+    return { success: true, message: '更新成功' }
+  }
+
   const getCurrentUserId = computed(() => {
     return currentUser.value?.id || ''
   })
@@ -178,6 +207,7 @@ export const useUserStore = defineStore('user', () => {
     autoLogin,
     loadProfileStats,
     updateUserAvatar,
+    updateProfile,
     getCurrentUserId,
     updateNotificationCount,
     getDaysJoined

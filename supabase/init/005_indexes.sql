@@ -51,6 +51,10 @@ CREATE INDEX IF NOT EXISTS idx_help_posts_zone_created_at ON help_posts(zone, cr
 CREATE INDEX IF NOT EXISTS idx_help_answers_post_id ON help_answers(help_post_id);
 CREATE INDEX IF NOT EXISTS idx_help_answers_post_id_created_at ON help_answers(help_post_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_help_answers_author_id ON help_answers(author_id);
+-- 确保每个帖子最多一条被采纳的回答
+CREATE UNIQUE INDEX IF NOT EXISTS idx_help_answers_one_accepted_per_post
+  ON help_answers (help_post_id)
+  WHERE is_accepted = TRUE;
 
 -- ------------------------------
 -- 关注表索引

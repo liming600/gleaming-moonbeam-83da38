@@ -4,9 +4,28 @@
 -- ============================================
 
 -- 1. users 表（扩展 auth.users）
-ALTER TABLE IF EXISTS users 
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  name TEXT,
+  avatar_url TEXT,
+  bio TEXT,
+  gender TEXT,
+  age TEXT,
+  posts_count INTEGER DEFAULT 0,
+  followers_count INTEGER DEFAULT 0,
+  following_count INTEGER DEFAULT 0,
+  pets_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 为已存在的users表补充缺失字段
+ALTER TABLE IF EXISTS users
   ADD COLUMN IF NOT EXISTS avatar_url TEXT,
   ADD COLUMN IF NOT EXISTS bio TEXT,
+  ADD COLUMN IF NOT EXISTS gender TEXT,
+  ADD COLUMN IF NOT EXISTS age TEXT,
   ADD COLUMN IF NOT EXISTS posts_count INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS followers_count INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS following_count INTEGER DEFAULT 0,
@@ -92,6 +111,7 @@ CREATE TABLE IF NOT EXISTS help_posts (
   answers_count INTEGER DEFAULT 0,
   status help_status DEFAULT 'open',
   is_urgent BOOLEAN DEFAULT FALSE,
+  accepted_answer_id UUID REFERENCES help_answers(id) ON DELETE SET NULL,
   accepted_answer TEXT,
   location_address TEXT,
   location_latitude NUMERIC,
@@ -104,6 +124,7 @@ ALTER TABLE IF EXISTS help_posts
   ADD COLUMN IF NOT EXISTS zone help_zone DEFAULT 'experience',
   ADD COLUMN IF NOT EXISTS status help_status DEFAULT 'open',
   ADD COLUMN IF NOT EXISTS is_urgent BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS accepted_answer_id UUID REFERENCES help_answers(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS accepted_answer TEXT,
   ADD COLUMN IF NOT EXISTS location_address TEXT,
   ADD COLUMN IF NOT EXISTS location_latitude NUMERIC,

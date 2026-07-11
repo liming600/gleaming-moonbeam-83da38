@@ -47,7 +47,11 @@ export const handleAuthError = (error: Error | null): ErrorResult => {
     return { success: true, message: '认证成功' }
   }
 
-  logger.error('[Auth Error]:', error.message)
+  logger.error('[Auth Error]:', error)
+  logger.error('[Auth Error Code]:', (error as any)?.code)
+  logger.error('[Auth Error Details]:', (error as any)?.details)
+
+  const errorMessage = error.message || JSON.stringify(error)
 
   const authErrorMessages: Record<string, string> = {
     'User already registered': '该邮箱已被注册',
@@ -55,18 +59,22 @@ export const handleAuthError = (error: Error | null): ErrorResult => {
     'Invalid login credentials': '邮箱或密码错误',
     'Password must be at least 6 characters': '密码至少需要6位',
     'Rate limit exceeded': '请求过于频繁，请稍后再试',
-    'Email rate limit exceeded': '验证码发送过于频繁，请稍后再试'
+    'Email rate limit exceeded': '验证码发送过于频繁，请稍后再试',
+    'Invalid API key': 'API密钥无效，请检查配置',
+    'Invalid URL': 'Supabase URL无效，请检查配置',
+    'Network request failed': '网络请求失败，请检查网络连接',
+    'Failed to fetch': '网络请求失败，请检查网络连接'
   }
 
   const matchedKey = Object.keys(authErrorMessages).find(key => 
-    error.message.toLowerCase().includes(key.toLowerCase())
+    errorMessage.toLowerCase().includes(key.toLowerCase())
   )
 
   const userMessage = matchedKey 
     ? authErrorMessages[matchedKey] 
-    : error.message.length > 50 
+    : errorMessage.length > 50 
       ? '认证失败，请重试' 
-      : error.message
+      : errorMessage
 
   return {
     success: false,

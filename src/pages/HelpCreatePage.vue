@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, Send, AlertTriangle } from 'lucide-vue-next'
 import LocationPicker from '@/components/LocationPicker.vue'
 import { useUiStore } from '@/stores/uiStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHelpStore } from '@/stores/helpStore'
+import { helpService } from '@/services/helpService'
 import type { Location } from '@/mock/helpPosts'
 
 const uiStore = useUiStore()
 const router = useRouter()
+const route = useRoute()
+const helpStore = useHelpStore()
+
+const editPostId = computed(() => route.query.id as string | undefined)
 
 const title = ref('')
 const content = ref('')
 const selectedZone = ref<'experience' | 'question' | 'rescue' | 'mutual'>('question')
 const isUrgent = ref(false)
 const location = ref<Location | null>(null)
+const isSubmitting = ref(false)
 
 const zones: Array<{ key: 'experience' | 'question' | 'rescue' | 'mutual', label: string, icon: string, desc: string, color: string }> = [
   { key: 'experience', label: '经验', icon: '📚', desc: '分享养宠经验', color: '#F97316' },
@@ -26,7 +33,7 @@ const back = () => {
   router.back()
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!title.value.trim()) {
     uiStore.showWarningToast('请输入标题')
     return
@@ -36,11 +43,66 @@ const handleSubmit = () => {
     return
   }
 
-  const zoneConfig = zones.find(z => z.key === selectedZone.value)!
+  isSubmitting.value = true
   
-  uiStore.showSuccessToast(`成功发布${zoneConfig.label}帖子：${title.value}`)
-  router.push('/help')
+  try {
+    let result
+    if (editPostId.value) {
+      result = await helpStore.updateHelpPost(editPostId.value, {
+        zone: selectedZone.value,
+        title: title.value,
+        content: content.value,
+        isUrgent: isUrgent.value,
+        location: location.value
+      })
+    } else {
+      result = await helpStore.createHelpPost({
+        zone: selectedZone.value,
+        title: title.value,
+        content: content.value,
+        isUrgent: isUrgent.value,
+        location: location.value
+      })
+    }
+
+    if (result.success) {
+      const zoneConfig = zones.find(z => z.key === selectedZone.value)!
+      uiStore.showSuccessToast(editPostId.value ? '更新成功' : `成功发布${zoneConfig.label}帖子：${title.value}`)
+      if (editPostId.value) {
+        router.push(`/help/${editPostId.value}`)
+      } else {
+        router.push('/help')
+      }
+    } else {
+      uiStore.showErrorToast(result.message)
+    }
+  } catch (e) {
+    console.error('操作失败:', e)
+    uiStore.showErrorToast(editPostId.value ? '更新失败，请稍后重试' : '发布失败，请稍后重试')
+  } finally {
+    isSubmitting.value = false
+  }
 }
+
+const loadPostData = async () => {
+  if (!editPostId.value) return
+
+  const { post, error } = await helpService.getHelpPostById(editPostId.value)
+  if (error || !post) {
+    uiStore.showErrorToast('加载帖子失败')
+    return
+  }
+
+  title.value = post.title
+  content.value = post.content
+  selectedZone.value = post.zone
+  isUrgent.value = post.is_urgent
+  location.value = post.location || null
+}
+
+onMounted(() => {
+  loadPostData()
+})
 </script>
 
 <template>
@@ -49,10 +111,10 @@ const handleSubmit = () => {
       <button class="back-btn" @click="back">
         <ArrowLeft :size="24" />
       </button>
-      <h1 class="header-title">发互助</h1>
-      <button class="submit-btn" @click="handleSubmit">
+      <h1 class="header-title">{{ editPostId ? '编辑互助' : '发互助' }}</h1>
+      <button class="submit-btn" @click="handleSubmit" :disabled="isSubmitting">
         <Send :size="18" />
-        <span>发布</span>
+        <span>{{ isSubmitting ? (editPostId ? '更新中...' : '发布中...') : (editPostId ? '更新' : '发布') }}</span>
       </button>
     </header>
 

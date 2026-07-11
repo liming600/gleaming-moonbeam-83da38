@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, Users } from 'lucide-vue-next'
+import { ArrowLeft } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
 import { useUserStore } from '@/stores/userStore'
@@ -161,7 +161,7 @@ onMounted(async () => {
             <div class="stat-label">粉丝</div>
           </div>
           <div class="stat-divider"></div>
-          <div class="stat-item" @click="isOwnProfile ? router.push('/my-pets') : goToPetProfile(userPets[0]?.id || '')">
+          <div class="stat-item" @click="isOwnProfile && router.push('/my-pets')">
             <div class="stat-value">{{ userStats.pets }}</div>
             <div class="stat-label">宠物</div>
           </div>
@@ -177,7 +177,6 @@ onMounted(async () => {
     <div v-if="user" class="section">
       <div class="section-header">
         <h3 class="section-title">🐾 {{ user.name }} 的宠物</h3>
-        <Users :size="18" class="section-icon" />
       </div>
       <div class="pet-grid">
         <div
@@ -241,7 +240,7 @@ onMounted(async () => {
   z-index: 100;
   background: rgba(255, 249, 245, 0.95);
   backdrop-filter: blur(10px);
-  padding: 16px;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -252,8 +251,8 @@ onMounted(async () => {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #fff;
-  color: #292524;
+  background: var(--bg-card);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,7 +263,7 @@ onMounted(async () => {
 .header-title {
   font-size: 18px;
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
 }
 
 .header-placeholder {
@@ -272,7 +271,7 @@ onMounted(async () => {
 }
 
 .user-header {
-  padding-top: 50px;
+  padding-top: calc(env(safe-area-inset-top) + 52px);
 }
 
 .profile-card {
@@ -286,12 +285,14 @@ onMounted(async () => {
 .cover-wrapper {
   position: relative;
   height: 120px;
+  background: linear-gradient(135deg, #F97316, #FB923C);
 }
 
 .cover-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
 }
 
 .cover-overlay {
@@ -313,11 +314,11 @@ onMounted(async () => {
 }
 
 .user-avatar {
-  width: 90px;
-  height: 90px;
+  width: clamp(70px, 20vw, 90px);
+  height: clamp(70px, 20vw, 90px);
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #fff;
+  border: 3px solid var(--bg-card);
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
   flex-shrink: 0;
 }
@@ -328,37 +329,40 @@ onMounted(async () => {
 }
 
 .user-name {
-  font-size: 20px;
+  font-size: clamp(18px, 4.5vw, 22px);
   font-weight: 700;
-  color: #292524;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-desc {
   margin-top: 4px;
-  font-size: 13px;
-  color: #57534E;
+  font-size: clamp(12px, 3vw, 14px);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .self-badge {
-  padding: 8px 24px;
-  background: #F5F5F4;
-  color: #A8A29E;
+  padding: clamp(6px, 1.5vw, 8px) clamp(16px, 4vw, 24px);
+  background: var(--border-color);
+  color: var(--text-light);
   border-radius: 20px;
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
   font-weight: 500;
   flex-shrink: 0;
 }
 
 .follow-btn {
-  padding: 8px 24px;
-  background: linear-gradient(135deg, #F97316, #FB923C);
+  padding: clamp(6px, 1.5vw, 8px) clamp(16px, 4vw, 24px);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: #fff;
   border: none;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(249, 115, 22, 0.25);
@@ -371,18 +375,18 @@ onMounted(async () => {
 }
 
 .follow-btn.followed {
-  background: #F5F5F4;
-  color: #57534E;
+  background: var(--border-color);
+  color: var(--text-secondary);
   box-shadow: none;
 }
 
 .stats-card {
   margin: 0 16px 16px;
-  padding: 16px 20px;
+  padding: clamp(12px, 3vw, 16px) clamp(16px, 4vw, 20px);
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: #FFF9F5;
+  background: var(--bg-primary);
   border-radius: 16px;
 }
 
@@ -404,26 +408,26 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: clamp(18px, 4.5vw, 22px);
   font-weight: 700;
-  color: #292524;
+  color: var(--text-primary);
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #A8A29E;
+  font-size: clamp(11px, 2.8vw, 12px);
+  color: var(--text-light);
 }
 
 .stat-divider {
   width: 1px;
-  height: 40px;
-  background: #F5F5F4;
+  height: clamp(32px, 8vw, 40px);
+  background: var(--border-color);
 }
 
 .section {
-  background: #fff;
+  background: var(--bg-card);
   margin: 16px;
-  padding: 16px;
+  padding: clamp(12px, 3vw, 16px);
   border-radius: 20px;
   box-shadow: 0 4px 16px rgba(249, 115, 22, 0.08);
 }
@@ -432,22 +436,20 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: clamp(12px, 3vw, 16px);
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: clamp(14px, 3.5vw, 15px);
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
 }
 
-.section-icon {
-  color: #F97316;
-}
+
 
 .pet-grid {
   display: flex;
-  gap: 12px;
+  gap: clamp(8px, 2vw, 12px);
   overflow-x: auto;
   padding-bottom: 8px;
 }
@@ -457,16 +459,16 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 12px;
-  background: #FFF9F5;
+  padding: clamp(10px, 2.5vw, 12px);
+  background: var(--bg-primary);
   border-radius: 16px;
   cursor: pointer;
-  min-width: 80px;
+  min-width: clamp(70px, 18vw, 80px);
 }
 
 .pet-card .pet-avatar {
-  width: 60px;
-  height: 60px;
+  width: clamp(50px, 14vw, 60px);
+  height: clamp(50px, 14vw, 60px);
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid transparent;
@@ -475,31 +477,34 @@ onMounted(async () => {
 }
 
 .pet-card .pet-name {
-  font-size: 13px;
-  color: #292524;
+  font-size: clamp(12px, 3vw, 13px);
+  color: var(--text-primary);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pet-card .pet-followers {
-  font-size: 11px;
-  color: #A8A29E;
+  font-size: clamp(10px, 2.5vw, 11px);
+  color: var(--text-light);
 }
 
 .empty-pets {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 30px;
-  color: #A8A29E;
+  padding: clamp(16px, 4vw, 20px) clamp(24px, 6vw, 30px);
+  color: var(--text-light);
 }
 
 .empty-icon {
-  font-size: 32px;
+  font-size: clamp(28px, 7vw, 32px);
   margin-bottom: 8px;
 }
 
 .empty-pets p {
-  font-size: 13px;
+  font-size: clamp(12px, 3vw, 13px);
 }
 
 .posts-section {
@@ -507,10 +512,10 @@ onMounted(async () => {
 }
 
 .help-post-item {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: clamp(12px, 3vw, 16px);
+  margin-bottom: clamp(8px, 2vw, 12px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
@@ -520,26 +525,29 @@ onMounted(async () => {
 }
 
 .help-post-zone {
-  padding: 4px 12px;
+  padding: clamp(3px, 1vw, 4px) clamp(10px, 2.5vw, 12px);
   background: rgba(249, 115, 22, 0.1);
-  color: #F97316;
+  color: var(--primary);
   border-radius: 12px;
-  font-size: 12px;
+  font-size: clamp(11px, 2.8vw, 12px);
   font-weight: 500;
 }
 
 .help-post-title {
-  font-size: 16px;
+  font-size: clamp(15px, 3.8vw, 16px);
   font-weight: 600;
-  color: #292524;
+  color: var(--text-primary);
   margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .help-post-content {
-  font-size: 14px;
-  color: #57534E;
+  font-size: clamp(13px, 3.3vw, 14px);
+  color: var(--text-secondary);
   line-height: 1.5;
-  margin-bottom: 12px;
+  margin-bottom: clamp(8px, 2vw, 12px);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -549,12 +557,12 @@ onMounted(async () => {
 .help-post-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: clamp(12px, 3vw, 16px);
 }
 
 .meta-item {
-  font-size: 13px;
-  color: #A8A29E;
+  font-size: clamp(12px, 3vw, 13px);
+  color: var(--text-light);
 }
 
 .empty-state {
@@ -562,16 +570,16 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px;
-  color: #A8A29E;
+  padding: clamp(32px, 8vw, 48px);
+  color: var(--text-light);
 }
 
 .empty-state .empty-icon {
-  font-size: 48px;
+  font-size: clamp(36px, 9vw, 48px);
 }
 
 .empty-state p {
-  font-size: 14px;
+  font-size: clamp(13px, 3.3vw, 14px);
 }
 
 .user-profile-skeleton {

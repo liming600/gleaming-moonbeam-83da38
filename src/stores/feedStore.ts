@@ -415,6 +415,25 @@ export const useFeedStore = defineStore('feed', () => {
     return { success: false, message: '删除失败' }
   })
 
+  const updatePost = wrapLoading(async (postId: string, postData: Partial<Omit<Post, 'id' | 'likes' | 'comments' | 'createdAt' | 'petName' | 'petAvatar' | 'isLiked' | 'ownerId'>>) => {
+    const { post, error } = await postService.updatePost(postId, postData)
+
+    if (error) {
+      logger.warn('更新帖子失败:', error.message)
+      return { success: false, message: error.message }
+    }
+
+    if (post) {
+      const index = posts.value.findIndex(p => p.id === postId)
+      if (index >= 0) {
+        posts.value[index] = { ...posts.value[index], ...post }
+      }
+      return { success: true, message: '更新成功', post }
+    }
+
+    return { success: false, message: '更新失败' }
+  })
+
   return {
     posts,
     currentTab,
@@ -434,7 +453,8 @@ export const useFeedStore = defineStore('feed', () => {
     addDiary,
     addComment,
     deletePost,
-    deleteComment
+    deleteComment,
+    updatePost
   }
 }, {
   persist: {

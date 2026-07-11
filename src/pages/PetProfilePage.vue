@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, Hand } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
@@ -398,7 +398,7 @@ const tabs = [
 
 .cover-wrapper {
   position: relative;
-  height: 120px;
+  height: clamp(80px, 25vw, 120px);
 }
 
 .cover-image {
@@ -430,12 +430,13 @@ const tabs = [
 }
 
 .pet-avatar {
-  width: 90px;
-  height: 90px;
+  width: clamp(70px, 20vw, 90px);
+  height: clamp(70px, 20vw, 90px);
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #fff;
+  border: 3px solid var(--bg-card);
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+  flex-shrink: 0;
 }
 
 .change-pet-avatar-btn {

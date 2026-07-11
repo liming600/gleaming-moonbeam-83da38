@@ -290,14 +290,19 @@ const handleAvatarError = (e: Event) => {
 }
 
 .post-images {
-  margin-bottom: 12px;
+  margin-bottom: clamp(8px, 2vw, 12px);
 }
 
 .post-image {
   width: 100%;
-  border-radius: 16px;
+  border-radius: clamp(12px, 3vw, 16px);
   object-fit: cover;
-  max-height: 300px;
+  max-height: clamp(200px, 50vw, 300px);
+  margin-bottom: clamp(6px, 1.5vw, 8px);
+}
+
+.post-image:last-child {
+  margin-bottom: 0;
 }
 
 .post-tags {

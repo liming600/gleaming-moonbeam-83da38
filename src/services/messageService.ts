@@ -15,8 +15,7 @@ export const messageService = {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .or(`sender_id.eq.${otherUserId},sender_id.eq.${currentUserId}`)
-        .or(`receiver_id.eq.${otherUserId},receiver_id.eq.${currentUserId}`)
+        .or(`(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
         .order('created_at', { ascending: true })
 
       if (error) {
@@ -57,6 +56,41 @@ export const messageService = {
       const { error } = await supabase
         .from('messages')
         .update({ read: true })
+        .eq('id', messageId)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
+    }
+  },
+
+  async markAllAsRead(otherUserId: string, currentUserId: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('receiver_id', currentUserId)
+        .eq('sender_id', otherUserId)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
+    }
+  },
+
+  async deleteMessage(messageId: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
         .eq('id', messageId)
 
       if (error) {

@@ -59,11 +59,23 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 | 1 | `001_init_extensions.sql` | 启用 uuid-ossp、pgcrypto 扩展 |
 | 2 | `002_enums.sql` | 创建枚举类型 |
 | 3 | `003_tables.sql` | 创建表结构 |
-| 4 | `004_triggers.sql` | 创建触发器 |
+| 4 | `004_triggers.sql` | 创建基础触发器 |
 | 5 | `005_indexes.sql` | 创建索引 |
 | 6 | `006_rls_policies.sql` | 配置 RLS 策略 |
 
-### 步骤 3：验证表创建
+### 步骤 3：执行修复脚本（按需）
+
+以下脚本用于修复特定问题，根据需要执行：
+
+| 序号 | 文件名 | 内容 |
+|------|--------|------|
+| 7 | `007_fix_triggers.sql` | 修复用户同步触发器 |
+| 8 | `008_fix_help_posts.sql` | 修复互助帖子采纳机制 |
+| 9 | `009_fix_auth_triggers.sql` | 修复 Auth 登录触发器（解决登录 500 错误） |
+
+> **注意**：`009_fix_auth_triggers.sql` 必须执行，否则会导致登录时报 500 错误 `"Database error granting user"`
+
+### 步骤 4：验证表创建
 
 1. 点击左侧菜单 **Table Editor**
 2. 确认以下表已创建：

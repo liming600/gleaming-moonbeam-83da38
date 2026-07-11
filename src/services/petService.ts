@@ -13,6 +13,9 @@ export interface Pet {
   personality?: string
   created_at?: string
   updated_at?: string
+  posts?: number
+  likes?: number
+  followers?: number
   posts_count?: number
   likes_count?: number
   followers_count?: number
@@ -33,7 +36,14 @@ export const petService = {
         return { pets: [], error }
       }
 
-      return { pets: data || [], error: null }
+      const mappedPets = (data || []).map((pet: any) => ({
+        ...pet,
+        posts_count: pet.posts || pet.posts_count || 0,
+        likes_count: pet.likes || pet.likes_count || 0,
+        followers_count: pet.followers || pet.followers_count || 0
+      }))
+
+      return { pets: mappedPets, error: null }
     } catch (error) {
       return { pets: [], error: error as Error }
     }

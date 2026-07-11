@@ -110,6 +110,10 @@ const handleSubmit = async () => {
     return
   }
 
+  if (!petAvatar.value) {
+    petAvatar.value = generatePetAvatar(petBreed.value)
+  }
+
   if (isEditMode.value) {
     const result = await petStore.updatePet(editPetId.value, {
       name: petName.value,

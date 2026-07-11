@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ImagePlus, Send, ArrowLeft, Loader2 } from 'lucide-vue-next'
 import LocationPicker from '@/components/LocationPicker.vue'
 import { usePetStore } from '@/stores/petStore'
 import { useFeedStore } from '@/stores/feedStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useUserStore } from '@/stores/userStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { storageService } from '@/services/storageService'
+import { postService } from '@/services/postService'
 import type { Location } from '@/mock/posts'
 
 const petStore = usePetStore()
@@ -15,6 +16,9 @@ const feedStore = useFeedStore()
 const uiStore = useUiStore()
 const userStore = useUserStore()
 const router = useRouter()
+const route = useRoute()
+
+const editPostId = computed(() => route.query.id as string | undefined)
 
 interface UploadedImage {
   localUrl: string
@@ -30,6 +34,43 @@ const isSubmitting = ref(false)
 const uploadProgress = ref<Record<number, number>>({})
 
 const availableTags = ['#可爱', '#萌宠', '#日常', '#调皮', '#吃货', '#开心', '#慵懒', '#户外', '#技能', '#求助']
+
+const breedImagePrompts: Record<string, string> = {
+  '橘猫': 'orange tabby cat',
+  '金毛寻回犬': 'golden retriever dog',
+  '垂耳兔': 'lop eared rabbit',
+  '金丝熊': 'golden hamster',
+  '玄凤鹦鹉': 'cockatiel parrot',
+  '英国短毛猫': 'british shorthair cat',
+  '泰迪': 'teddy poodle dog',
+  '哈士奇': 'husky dog',
+  '柯基': 'corgi dog',
+  '布偶猫': 'ragdoll cat',
+  '暹罗猫': 'siamese cat',
+  '柴犬': 'shiba inu dog',
+  '萨摩耶': 'samoyed dog',
+  '比熊': 'bichon frise dog',
+  '贵宾犬': 'poodle dog',
+  '雪纳瑞': 'schnauzer dog',
+  '吉娃娃': 'chihuahua dog',
+  '德牧': 'german shepherd dog',
+  '拉布拉多': 'labrador retriever dog',
+  '加菲猫': 'persian cat',
+  '美短': 'american shorthair cat',
+  '龙猫': 'chinchilla pet',
+  '荷兰猪': 'guinea pig',
+  '金鱼': 'goldfish',
+  '乌龟': 'turtle',
+  '仓鼠': 'hamster'
+}
+
+const generateBreedImage = (breed: string): string => {
+  const prompt = breedImagePrompts[breed] || breed
+  const actions = ['playing', 'eating', 'sleeping', 'running', 'cute pose', 'happy']
+  const randomAction = actions[Math.floor(Math.random() * actions.length)]
+  const encodedPrompt = encodeURIComponent(`${prompt} ${randomAction} cute adorable`)
+  return `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodedPrompt}&image_size=landscape_4_3`
+}
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -122,28 +163,75 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true
 
-  const remoteUrls = images.value.map(img => img.remoteUrl).filter((url): url is string => url !== null)
+  let remoteUrls = images.value.map(img => img.remoteUrl).filter((url): url is string => url !== null)
 
-  const result = await feedStore.addPost({
-    petId: pet.id,
-    petName: pet.name,
-    petAvatar: pet.avatar,
-    content: content.value,
-    images: remoteUrls,
-    tags: selectedTags.value,
-    date: new Date().toISOString().split('T')[0],
-    location: location.value
-  })
+  if (remoteUrls.length === 0) {
+    const breed = pet.breed || pet.personality || ''
+    remoteUrls = [generateBreedImage(breed)]
+  }
+
+  let result
+  if (editPostId.value) {
+    result = await feedStore.updatePost(editPostId.value, {
+      petId: pet.id,
+      content: content.value,
+      images: remoteUrls,
+      tags: selectedTags.value,
+      date: new Date().toISOString().split('T')[0],
+      location: location.value,
+      isPublic: true,
+      isDiary: false
+    })
+  } else {
+    result = await feedStore.addPost({
+      petId: pet.id,
+      petName: pet.name,
+      petAvatar: pet.avatar,
+      content: content.value,
+      images: remoteUrls,
+      tags: selectedTags.value,
+      date: new Date().toISOString().split('T')[0],
+      location: location.value
+    })
+  }
 
   isSubmitting.value = false
 
   if (result.success) {
-    uiStore.showSuccessToast('发布成功')
-    router.push('/')
+    uiStore.showSuccessToast(editPostId.value ? '更新成功' : '发布成功')
+    if (editPostId.value) {
+      router.push(`/post/${editPostId.value}`)
+    } else {
+      router.push('/')
+    }
   } else {
-    uiStore.showErrorToast(result.message || '发布失败')
+    uiStore.showErrorToast(result.message || (editPostId.value ? '更新失败' : '发布失败'))
   }
 }
+
+const loadPostData = async () => {
+  if (!editPostId.value) return
+
+  const { post, error } = await postService.getPostById(editPostId.value)
+  if (error || !post) {
+    uiStore.showErrorToast('加载帖子失败')
+    return
+  }
+
+  selectedPetId.value = post.petId
+  content.value = post.content
+  selectedTags.value = [...post.tags]
+  location.value = post.location || null
+
+  images.value = post.images.map(img => ({
+    localUrl: img,
+    remoteUrl: img
+  }))
+}
+
+onMounted(() => {
+  loadPostData()
+})
 
 const back = () => {
   router.back()
@@ -156,11 +244,11 @@ const back = () => {
       <button class="back-btn" @click="back">
         <ArrowLeft :size="24" />
       </button>
-      <h1 class="header-title">发布帖子</h1>
+      <h1 class="header-title">{{ editPostId ? '编辑帖子' : '发布帖子' }}</h1>
       <button class="submit-btn" @click="handleSubmit" :disabled="isSubmitting">
         <Loader2 v-if="isSubmitting" :size="18" class="loader" />
         <Send v-else :size="18" />
-        <span>{{ isSubmitting ? '发布中...' : '发布' }}</span>
+        <span>{{ isSubmitting ? (editPostId ? '更新中...' : '发布中...') : (editPostId ? '更新' : '发布') }}</span>
       </button>
     </header>
 
