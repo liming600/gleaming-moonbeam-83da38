@@ -276,6 +276,11 @@ onMounted(async () => {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-placeholder {
@@ -318,11 +323,31 @@ onMounted(async () => {
 
 .avatar-section {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
   padding: 0 20px 20px;
   margin-top: -50px;
   position: relative;
+  flex-wrap: wrap;
+}
+
+.avatar-section .profile-info {
+  flex: 1 1 calc(100% - 110px);
+  min-width: 120px;
+}
+
+.avatar-section .action-buttons,
+.avatar-section .self-badge {
+  flex-basis: 100%;
+  margin-top: 8px;
+}
+
+@media (min-width: 400px) {
+  .avatar-section .action-buttons,
+  .avatar-section .self-badge {
+    flex-basis: auto;
+    margin-top: 0;
+  }
 }
 
 .user-avatar {
