@@ -333,13 +333,21 @@ onMounted(async () => {
 }
 
 .avatar-section .profile-info {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 calc(100% - 110px);
+  min-width: 120px;
 }
 
 .avatar-section .action-buttons,
 .avatar-section .self-badge {
   flex-shrink: 0;
+}
+
+@media (max-width: 430px) {
+  .avatar-section .action-buttons,
+  .avatar-section .self-badge {
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
 }
 
 @media (max-width: 420px) {
