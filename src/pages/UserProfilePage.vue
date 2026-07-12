@@ -102,9 +102,10 @@ onMounted(async () => {
 <template>
   <div class="user-profile-page">
     <header class="header">
-      <button class="back-btn" @click="back">
+      <button v-if="!isOwnProfile" class="back-btn" @click="back">
         <ArrowLeft :size="24" />
       </button>
+      <div v-else class="header-placeholder"></div>
       <h1 class="header-title">{{ user?.name || '用户主页' }}</h1>
       <div class="header-placeholder"></div>
     </header>
