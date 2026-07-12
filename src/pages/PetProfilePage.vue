@@ -196,24 +196,26 @@ const tabs = [
           <div class="cover-overlay"></div>
         </div>
         <div class="avatar-section">
-          <div class="pet-avatar-wrapper">
-            <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
-          </div>
-          <div class="pet-info">
-            <div class="pet-name">{{ pet.name }}</div>
-            <div class="pet-meta">
-              <span>{{ pet.breed }}</span>
-              <span>·</span>
-              <span>{{ pet.age }}</span>
-              <span>·</span>
-              <span>🐾 已陪伴 {{ Math.floor((Date.now() - new Date(pet.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天</span>
+          <div class="avatar-left">
+            <div class="pet-avatar-wrapper">
+              <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" @error="handleAvatarError" />
+            </div>
+            <div class="pet-info">
+              <div class="pet-name">{{ pet.name }}</div>
+              <div class="pet-meta">
+                <span>{{ pet.breed }}</span>
+                <span>·</span>
+                <span>{{ pet.age }}</span>
+                <span>·</span>
+                <span>🐾 已陪伴 {{ Math.floor((Date.now() - new Date(pet.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天</span>
+              </div>
             </div>
           </div>
+          <button class="paw-btn" :class="{ pawed: hasPawedToday }" @click="handlePaw">
+            <Hand :size="18" />
+            <span>{{ hasPawedToday ? '已击掌' : '击掌' }}</span>
+          </button>
         </div>
-        <button class="paw-btn" :class="{ pawed: hasPawedToday }" @click="handlePaw">
-          <Hand :size="18" />
-          <span>{{ hasPawedToday ? '已击掌' : '击掌' }}</span>
-        </button>
 
         <div class="owner-info" @click="goToOwner(pet.ownerId)">
           <img :src="pet.ownerAvatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar%20friendly%20face&image_size=square'" :alt="pet.ownerName" class="owner-avatar" />
@@ -424,10 +426,20 @@ const tabs = [
 .avatar-section {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 0 20px 12px;
   margin-top: -50px;
   position: relative;
+  flex-wrap: wrap;
+}
+
+.avatar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .pet-avatar-wrapper {
@@ -499,7 +511,6 @@ const tabs = [
   align-items: center;
   gap: 8px;
   padding: 8px 24px;
-  margin: 0 20px 16px;
   background: linear-gradient(135deg, #3B82F6, #60A5FA);
   color: #fff;
   border: none;
@@ -509,6 +520,16 @@ const tabs = [
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .paw-btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 4px;
+  }
 }
 
 .paw-btn:active {

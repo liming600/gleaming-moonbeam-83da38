@@ -333,21 +333,26 @@ onMounted(async () => {
 }
 
 .avatar-section .profile-info {
-  flex: 1 1 calc(100% - 110px);
-  min-width: 120px;
+  flex: 1;
+  min-width: 0;
 }
 
 .avatar-section .action-buttons,
 .avatar-section .self-badge {
-  flex-basis: 100%;
-  margin-top: 8px;
+  flex-shrink: 0;
 }
 
-@media (min-width: 400px) {
+@media (max-width: 420px) {
   .avatar-section .action-buttons,
   .avatar-section .self-badge {
-    flex-basis: auto;
-    margin-top: 0;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .avatar-section .action-buttons .follow-btn,
+  .avatar-section .action-buttons .message-btn {
+    flex: 1;
+    justify-content: center;
   }
 }
 
