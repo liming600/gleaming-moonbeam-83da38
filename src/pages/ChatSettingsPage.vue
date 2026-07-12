@@ -2,13 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  ArrowLeft, User, BellOff, Pin, Search,
-  Trash2, ShieldBan, AlertTriangle, ChevronRight
+  ArrowLeft, X, BellOff, Pin, Search,
+  Trash2, ShieldBan, AlertTriangle, ChevronRight, Clock
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { useUiStore } from '@/stores/uiStore'
 import { userService } from '@/services/userService'
-import { messageService } from '@/services/messageService'
+import { messageService, type Message } from '@/services/messageService'
 
 const router = useRouter()
 const route = useRoute()
@@ -21,6 +21,45 @@ const otherUser = ref({
   name: '',
   avatar: ''
 })
+
+// Search state
+const showSearch = ref(false)
+const searchQuery = ref('')
+const allMessages = ref<Message[]>([])
+const isSearching = ref(false)
+
+const filteredMessages = computed(() => {
+  if (!searchQuery.value.trim()) return []
+  const q = searchQuery.value.trim().toLowerCase()
+  return allMessages.value.filter(m => m.content.toLowerCase().includes(q))
+})
+
+const openSearch = async () => {
+  showSearch.value = true
+  isSearching.value = true
+  if (userStore.currentUser) {
+    const { messages: msgs } = await messageService.getMessages(otherUserId, userStore.currentUser.id)
+    allMessages.value = msgs
+  }
+  isSearching.value = false
+}
+
+const closeSearch = () => {
+  showSearch.value = false
+  searchQuery.value = ''
+  allMessages.value = []
+}
+
+const jumpToMessage = (_messageId: string) => {
+  router.push(`/chat/${otherUserId}`)
+}
+
+const formatSearchTime = (dateString: string): string => {
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' +
+    date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 
 // Settings state
 const muteKey = computed(() => `chat_mute_${userStore.currentUser?.id}_${otherUserId}`)
@@ -81,16 +120,16 @@ const reportUser = () => {
   uiStore.showWarningToast('举报功能开发中')
 }
 
-const searchChatHistory = () => {
-  router.push(`/chat/${otherUserId}?search=1`)
-}
-
 const goToProfile = () => {
   router.push(`/user/${otherUserId}`)
 }
 
 const back = () => {
-  router.back()
+  if (showSearch.value) {
+    closeSearch()
+  } else {
+    router.back()
+  }
 }
 
 // Grouped settings
@@ -111,17 +150,6 @@ interface SettingGroup {
 }
 
 const settingGroups = computed<SettingGroup[]>(() => [
-  {
-    items: [
-      {
-        icon: User,
-        label: '查看主页',
-        desc: otherUser.value.name,
-        rightType: 'arrow',
-        action: goToProfile
-      }
-    ]
-  },
   {
     title: '聊天管理',
     items: [
@@ -150,7 +178,7 @@ const settingGroups = computed<SettingGroup[]>(() => [
         icon: Search,
         label: '查找聊天记录',
         rightType: 'arrow',
-        action: searchChatHistory
+        action: openSearch
       },
       {
         icon: Trash2,
@@ -205,55 +233,97 @@ onMounted(async () => {
       <div class="header-placeholder"></div>
     </header>
 
-    <!-- Profile Card -->
-    <div class="profile-card" @click="goToProfile">
-      <img
-        :src="otherUser.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20owner%20avatar&image_size=square'"
-        :alt="otherUser.name"
-        class="profile-avatar"
-      />
-      <div class="profile-info">
-        <span class="profile-name">{{ otherUser.name }}</span>
-        <span class="profile-hint">查看主页 <ChevronRight :size="14" /></span>
+    <!-- Search Mode -->
+    <template v-if="showSearch">
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <Search :size="16" class="search-input-icon" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索聊天记录..."
+            class="search-input"
+            autofocus
+          />
+          <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">
+            <X :size="14" />
+          </button>
+        </div>
+        <button class="search-cancel" @click="closeSearch">取消</button>
       </div>
-    </div>
-
-    <!-- Settings Groups -->
-    <div v-for="(group, gi) in settingGroups" :key="gi" class="setting-group">
-      <h3 v-if="group.title" class="group-title">{{ group.title }}</h3>
-      <div class="group-items">
-        <div
-          v-for="(item, ii) in group.items"
-          :key="ii"
-          class="setting-item"
-          :class="{ 'has-desc': item.desc, danger: item.danger }"
-          @click="item.action"
-        >
-          <component :is="item.icon" :size="20" class="item-icon" />
-          <div class="item-content">
-            <span class="item-label" :class="{ 'label-danger': item.danger }">{{ item.label }}</span>
-            <span v-if="item.desc" class="item-desc">{{ item.desc }}</span>
-          </div>
-          <div v-if="item.rightType === 'arrow'" class="item-right">
-            <ChevronRight v-if="!item.danger" :size="16" class="arrow-icon" />
-          </div>
-          <div v-else-if="item.rightType === 'toggle'" class="item-right">
-            <label class="toggle-switch" @click.stop="item.action">
-              <input type="checkbox" :checked="item.toggleValue" />
-              <span class="toggle-slider"></span>
-            </label>
+      <div class="search-results">
+        <div v-if="isSearching" class="search-status">加载中...</div>
+        <div v-else-if="!searchQuery.trim()" class="search-status">输入关键词搜索聊天记录</div>
+        <div v-else-if="filteredMessages.length === 0" class="search-status">未找到相关消息</div>
+        <div v-else class="search-result-list">
+          <div
+            v-for="msg in filteredMessages"
+            :key="msg.id"
+            class="search-result-item"
+            @click="jumpToMessage(msg.id)"
+          >
+            <Clock :size="14" class="search-result-icon" />
+            <div class="search-result-content">
+              <p class="search-result-text" v-html="msg.content.replace(new RegExp(`(${searchQuery})`, 'gi'), '<em class=\"highlight\">$1</em>')"></p>
+              <span class="search-result-time">{{ formatSearchTime(msg.created_at) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
-    <!-- Danger Zone -->
-    <div class="danger-section">
-      <button class="danger-btn" @click="clearConversation">
-        <Trash2 :size="18" />
-        <span>清空聊天记录</span>
-      </button>
-    </div>
+    <!-- Normal Mode -->
+    <template v-else>
+      <!-- Profile Card -->
+      <div class="profile-card" @click="goToProfile">
+        <img
+          :src="otherUser.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20owner%20avatar&image_size=square'"
+          :alt="otherUser.name"
+          class="profile-avatar"
+        />
+        <div class="profile-info">
+          <span class="profile-name">{{ otherUser.name }}</span>
+          <span class="profile-hint">查看主页 <ChevronRight :size="14" /></span>
+        </div>
+      </div>
+
+      <!-- Settings Groups -->
+      <div v-for="(group, gi) in settingGroups" :key="gi" class="setting-group">
+        <h3 v-if="group.title" class="group-title">{{ group.title }}</h3>
+        <div class="group-items">
+          <div
+            v-for="(item, ii) in group.items"
+            :key="ii"
+            class="setting-item"
+            :class="{ 'has-desc': item.desc, danger: item.danger }"
+            @click="item.action"
+          >
+            <component :is="item.icon" :size="20" class="item-icon" />
+            <div class="item-content">
+              <span class="item-label" :class="{ 'label-danger': item.danger }">{{ item.label }}</span>
+              <span v-if="item.desc" class="item-desc">{{ item.desc }}</span>
+            </div>
+            <div v-if="item.rightType === 'arrow'" class="item-right">
+              <ChevronRight v-if="!item.danger" :size="16" class="arrow-icon" />
+            </div>
+            <div v-else-if="item.rightType === 'toggle'" class="item-right">
+              <label class="toggle-switch" @click.stop="item.action">
+                <input type="checkbox" :checked="item.toggleValue" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="danger-section">
+        <button class="danger-btn" @click="clearConversation">
+          <Trash2 :size="18" />
+          <span>清空聊天记录</span>
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -496,5 +566,130 @@ onMounted(async () => {
 
 .danger-btn:active {
   background: rgba(239, 68, 68, 0.05);
+}
+
+/* Search Bar */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #E7E5E4;
+}
+
+.search-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 12px;
+  color: #A8A29E;
+}
+
+.search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 36px 0 36px;
+  background: #F5F5F4;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #292524;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: #A8A29E;
+}
+
+.search-clear {
+  position: absolute;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #CCC;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.search-cancel {
+  font-size: 15px;
+  color: #F97316;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Search Results */
+.search-results {
+  padding: 16px;
+}
+
+.search-status {
+  text-align: center;
+  padding: 40px 20px;
+  color: #A8A29E;
+  font-size: 14px;
+}
+
+.search-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-result-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.search-result-item:active {
+  background: #FAFAFA;
+}
+
+.search-result-icon {
+  color: #CCC;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.search-result-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #292524;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.search-result-text :deep(.highlight) {
+  color: #F97316;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.search-result-time {
+  font-size: 12px;
+  color: #A8A29E;
 }
 </style>
