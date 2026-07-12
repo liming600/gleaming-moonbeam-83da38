@@ -1,6 +1,6 @@
 ﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Settings, Camera, ArrowLeft } from 'lucide-vue-next'
+import { Settings, Camera } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { usePetStore } from '@/stores/petStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -79,9 +79,7 @@ const handleAvatarUpload = async (event: Event) => {
 <template>
   <div class="profile-page">
     <header class="header">
-      <button class="back-btn" @click="router.back()">
-        <ArrowLeft :size="24" />
-      </button>
+      <div class="header-placeholder"></div>
       <h1 class="header-title">我的主页</h1>
       <button class="settings-btn" @click="router.push('/settings')">
         <Settings :size="20" />
