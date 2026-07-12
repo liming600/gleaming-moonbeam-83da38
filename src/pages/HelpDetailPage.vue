@@ -225,7 +225,7 @@ onMounted(async () => {
 
     <div v-if="helpPost" class="help-content">
       <div class="help-header">
-        <img :src="helpPost.authorAvatar" :alt="helpPost.authorName" class="author-avatar" />
+        <img :src="helpPost.authorAvatar" :alt="helpPost.authorName" class="author-avatar" @click.stop="router.push(`/user/${helpPost.authorId}`)" />
         <div class="author-info">
           <span class="author-name">{{ helpPost.authorName }}</span>
           <span class="post-time">{{ helpPost.createdAt }}</span>
@@ -383,6 +383,7 @@ onMounted(async () => {
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
+  cursor: pointer;
 }
 
 .author-info {

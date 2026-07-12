@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, MessageCircle } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { usePetStore } from '@/stores/petStore'
 import { useUserStore } from '@/stores/userStore'
@@ -59,6 +59,13 @@ const goToPetProfile = (petId: string) => {
   router.push(`/pet/${petId}`)
 }
 
+const goToChat = () => {
+  if (!userStore.currentUser) {
+    router.push('/login')
+    return
+  }
+  router.push(`/chat/${userId.value}`)
+}
 
 
 onMounted(async () => {
@@ -139,14 +146,19 @@ onMounted(async () => {
             <div class="user-name">{{ user.name }}</div>
             <p class="user-desc">{{ user.bio || '这家伙很懒，什么都没写~' }}</p>
           </div>
-          <button 
-            v-if="!isOwnProfile" 
-            class="follow-btn" 
-            :class="{ followed: isFollowing }" 
-            @click="toggleFollow"
-          >
-            {{ isFollowing ? '已关注' : '+ 关注' }}
-          </button>
+          <div v-if="!isOwnProfile" class="action-buttons">
+            <button
+              class="follow-btn"
+              :class="{ followed: isFollowing }"
+              @click="toggleFollow"
+            >
+              {{ isFollowing ? '已关注' : '+ 关注' }}
+            </button>
+            <button class="message-btn" @click="goToChat">
+              <MessageCircle :size="16" />
+              <span>发私信</span>
+            </button>
+          </div>
           <div v-else class="self-badge">我的主页</div>
         </div>
 
@@ -356,6 +368,12 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .follow-btn {
   padding: clamp(6px, 1.5vw, 8px) clamp(16px, 4vw, 24px);
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
@@ -378,6 +396,26 @@ onMounted(async () => {
   background: var(--border-color);
   color: var(--text-secondary);
   box-shadow: none;
+}
+
+.message-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: clamp(6px, 1.5vw, 8px) clamp(12px, 3vw, 16px);
+  background: #fff;
+  color: #F97316;
+  border: 1.5px solid #F97316;
+  border-radius: 20px;
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.message-btn:active {
+  transform: scale(0.98);
+  background: rgba(249, 115, 22, 0.05);
 }
 
 .stats-card {

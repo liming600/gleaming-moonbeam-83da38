@@ -116,7 +116,7 @@ const closeTipModal = () => {
         @click="goToHelpDetail(post.id)"
       >
         <div class="help-header">
-          <img :src="post.authorAvatar" :alt="post.authorName" class="author-avatar" />
+          <img :src="post.authorAvatar" :alt="post.authorName" class="author-avatar" @click.stop="router.push(`/user/${post.authorId}`)" />
           <div class="author-info">
             <div class="author-row">
               <span class="author-name">{{ post.authorName }}</span>
@@ -349,6 +349,7 @@ const closeTipModal = () => {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
+  cursor: pointer;
 }
 
 .author-info {
