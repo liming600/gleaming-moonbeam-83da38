@@ -209,11 +209,11 @@ const tabs = [
               <span>🐾 已陪伴 {{ Math.floor((Date.now() - new Date(pet.createdAt).getTime()) / (1000 * 60 * 60 * 24)) }} 天</span>
             </div>
           </div>
-          <button class="paw-btn" :class="{ pawed: hasPawedToday }" @click="handlePaw">
-            <Hand :size="18" />
-            <span>{{ hasPawedToday ? '已击掌' : '击掌' }}</span>
-          </button>
         </div>
+        <button class="paw-btn" :class="{ pawed: hasPawedToday }" @click="handlePaw">
+          <Hand :size="18" />
+          <span>{{ hasPawedToday ? '已击掌' : '击掌' }}</span>
+        </button>
 
         <div class="owner-info" @click="goToOwner(pet.ownerId)">
           <img :src="pet.ownerAvatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20avatar%20friendly%20face&image_size=square'" :alt="pet.ownerName" class="owner-avatar" />
@@ -425,28 +425,9 @@ const tabs = [
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 20px 20px;
+  padding: 0 20px 12px;
   margin-top: -50px;
   position: relative;
-  flex-wrap: wrap;
-}
-
-.avatar-section .pet-info {
-  flex: 1 1 calc(100% - 110px);
-  min-width: 120px;
-}
-
-.avatar-section .paw-btn {
-  flex-basis: 100%;
-  margin-top: 8px;
-  justify-content: center;
-}
-
-@media (min-width: 400px) {
-  .avatar-section .paw-btn {
-    flex-basis: auto;
-    margin-top: 0;
-  }
 }
 
 .pet-avatar-wrapper {
@@ -514,7 +495,11 @@ const tabs = [
 }
 
 .paw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 24px;
+  margin: 0 20px 16px;
   background: linear-gradient(135deg, #3B82F6, #60A5FA);
   color: #fff;
   border: none;
@@ -524,10 +509,6 @@ const tabs = [
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .paw-btn:active {
