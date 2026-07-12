@@ -354,7 +354,7 @@ const tabs = [
   z-index: 100;
   background: rgba(255, 249, 245, 0.95);
   backdrop-filter: blur(10px);
-  padding: 16px;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -390,7 +390,7 @@ const tabs = [
 }
 
 .pet-header {
-  padding-top: 50px;
+  padding-top: calc(env(safe-area-inset-top) + 52px);
 }
 
 .profile-card {
