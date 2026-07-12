@@ -47,11 +47,14 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString('zh-CN')
 }
 
-// Sort: urgent first, then by raw ISO date descending
+// Sort: urgent first (resolved urgent posts are treated as non-urgent), then by raw ISO date descending
 const sortHelpPosts = (posts: HelpPostWithSort[]): HelpPostWithSort[] => {
   return [...posts].sort((a, b) => {
-    if (a.isUrgent && !b.isUrgent) return -1
-    if (!a.isUrgent && b.isUrgent) return 1
+    // Resolved urgent posts should sort as non-urgent
+    const aIsUrgent = a.isUrgent && a.status !== 'resolved'
+    const bIsUrgent = b.isUrgent && b.status !== 'resolved'
+    if (aIsUrgent && !bIsUrgent) return -1
+    if (!aIsUrgent && bIsUrgent) return 1
     const rawA = a._sortDate || a.createdAt
     const rawB = b._sortDate || b.createdAt
     const timeA = new Date(rawA).getTime()
@@ -196,7 +199,7 @@ export const useHelpStore = defineStore('help', () => {
 
     if (post) {
       const newPost = mapApiHelpPostToHelpPost(post)
-      helpPosts.value.unshift(newPost)
+      helpPosts.value.push(newPost)
       return { success: true, message: '发布成功', post: newPost }
     }
 
