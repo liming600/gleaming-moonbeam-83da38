@@ -1,9 +1,10 @@
 ﻿<script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { ArrowLeft, Send, MoreVertical } from 'lucide-vue-next'
+import { ArrowLeft, Send } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import { messageService } from '@/services/messageService'
+import { userService } from '@/services/userService'
 import { logger } from '@/utils/logger'
 
 const router = useRouter()
@@ -87,7 +88,7 @@ const formatTime = (dateString: string): string => {
 }
 
 const back = () => {
-  router.push('/messages')
+  router.back()
 }
 
 watch(() => messages.value.length, () => {
@@ -95,6 +96,13 @@ watch(() => messages.value.length, () => {
 })
 
 onMounted(async () => {
+  // Load other user's profile
+  const { user } = await userService.getUserById(otherUser.value.id)
+  if (user) {
+    otherUser.value.name = user.name
+    otherUser.value.avatar = user.avatar_url || ''
+  }
+
   if (userStore.currentUser) {
     await loadMessages()
   }
@@ -107,13 +115,8 @@ onMounted(async () => {
       <button class="back-btn" @click="back">
         <ArrowLeft :size="24" />
       </button>
-      <div class="header-info">
-        <img :src="otherUser.avatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20owner%20avatar&image_size=square'" :alt="otherUser.name" class="header-avatar" />
-        <span class="header-name">{{ otherUser.name || '聊天对象' }}</span>
-      </div>
-      <button class="more-btn">
-        <MoreVertical :size="20" />
-      </button>
+      <span class="header-name">{{ otherUser.name || '聊天' }}</span>
+      <div class="header-placeholder"></div>
     </header>
 
     <div ref="messagesContainer" class="messages-container">
@@ -200,37 +203,15 @@ onMounted(async () => {
   transform: scale(0.95);
 }
 
-.header-info {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
 .header-name {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #292524;
+  text-align: center;
 }
 
-.more-btn {
+.header-placeholder {
   width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: #F5F5F4;
-  color: #292524;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 .messages-container {

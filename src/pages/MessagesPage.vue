@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { ArrowLeft, Loader2 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import { messageService, type Conversation } from '@/services/messageService'
 
 const router = useRouter()
+const userStore = useUserStore()
+const notificationStore = useNotificationStore()
+
+const isLoadingMessages = ref(false)
+const isLoadingNotifications = ref(false)
 
 const activeTab = ref<'notifications' | 'messages'>('notifications')
 
@@ -12,92 +20,65 @@ const tabs = [
   { key: 'messages', label: '私信' }
 ] as const
 
-const notifications = ref([
-  {
-    id: '1',
-    type: 'like',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square',
-    author: '橘猫球球',
-    content: '赞了你发布的帖子',
-    time: '5分钟前',
-    unread: true
-  },
-  {
-    id: '2',
-    type: 'comment',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20dog%20avatar&image_size=square',
-    author: '金毛旺财',
-    content: '评论了你发布的帖子：太可爱了！',
-    time: '30分钟前',
-    unread: true
-  },
-  {
-    id: '3',
-    type: 'follow',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20rabbit%20avatar&image_size=square',
-    author: '兔子小白',
-    content: '关注了你家猫咪',
-    time: '1小时前',
-    unread: false
-  },
-  {
-    id: '4',
-    type: 'help',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20hamster%20avatar&image_size=square',
-    author: '仓鼠团团',
-    content: '采纳了你在互助大厅的回答',
-    time: '2小时前',
-    unread: false
-  },
-  {
-    id: '5',
-    type: 'system',
-    avatar: '🐾',
-    author: '系统通知',
-    content: '恭喜你完成首次互助回答！',
-    time: '昨天',
-    unread: false
-  }
-])
+const conversations = ref<Conversation[]>([])
 
-const messages = ref([
-  {
-    id: '1',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20cat%20avatar&image_size=square',
-    name: '橘猫球球',
-    lastMessage: '你家猫咪太可爱了！',
-    time: '5分钟前',
-    unread: 2
-  },
-  {
-    id: '2',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20dog%20avatar&image_size=square',
-    name: '金毛旺财',
-    lastMessage: '周末一起遛狗呀',
-    time: '1小时前',
-    unread: 0
-  },
-  {
-    id: '3',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20rabbit%20avatar&image_size=square',
-    name: '兔子小白',
-    lastMessage: '谢谢你的建议',
-    time: '昨天',
-    unread: 0
-  },
-  {
-    id: '4',
-    avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20bird%20avatar&image_size=square',
-    name: '鹦鹉乐乐',
-    lastMessage: '我家鹦鹉会说话了！',
-    time: '2天前',
-    unread: 1
+const formatTime = (dateString: string): string => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  return date.toLocaleDateString('zh-CN')
+}
+
+const loadConversations = async () => {
+  if (!userStore.currentUser) return
+  isLoadingMessages.value = true
+  const { conversations: data } = await messageService.getConversations(userStore.currentUser.id)
+  conversations.value = data
+  isLoadingMessages.value = false
+}
+
+const handleNotificationClick = (notification: any) => {
+  notificationStore.markAsRead(notification.id)
+  switch (notification.type) {
+    case 'like':
+    case 'comment':
+      router.push(`/post/${notification.related_id}`)
+      break
+    case 'follow':
+      router.push(`/user/${notification.related_id}`)
+      break
+    case 'help_answer':
+    case 'help_accepted':
+      router.push(`/help/${notification.related_id}`)
+      break
+    default:
+      break
   }
-])
+}
 
 const back = () => {
   router.back()
 }
+
+onMounted(async () => {
+  if (userStore.currentUser) {
+    loadConversations()
+    isLoadingNotifications.value = true
+    await notificationStore.loadNotifications(userStore.currentUser.id)
+    isLoadingNotifications.value = false
+  }
+})
 </script>
 
 <template>
@@ -123,59 +104,69 @@ const back = () => {
     </div>
 
     <div v-if="activeTab === 'notifications'" class="message-list">
-      <div
-        v-for="notification in notifications"
-        :key="notification.id"
-        class="message-item"
-        :class="{ unread: notification.unread }"
-      >
-        <div class="message-avatar" :class="{ 'system-avatar': notification.type === 'system' }">
-          <template v-if="notification.type === 'system'">
-            <span class="avatar-emoji">{{ notification.avatar }}</span>
-          </template>
-          <template v-else>
-            <img :src="notification.avatar" :alt="notification.author" />
-          </template>
-        </div>
-        <div class="message-content">
-          <div class="message-header">
-            <span class="message-author">{{ notification.author }}</span>
-            <span class="message-time">{{ notification.time }}</span>
+      <div v-if="isLoadingNotifications" class="loading-state">
+        <Loader2 :size="24" class="loader" />
+        <span>加载中...</span>
+      </div>
+      <template v-else>
+        <div
+          v-for="notification in notificationStore.notifications"
+          :key="notification.id"
+          class="message-item"
+          :class="{ unread: !notification.read }"
+          @click="handleNotificationClick(notification)"
+        >
+          <div class="message-avatar">
+            <span class="avatar-emoji">{{ notificationStore.getNotificationIcon(notification) }}</span>
           </div>
-          <p class="message-text">{{ notification.content }}</p>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author">{{ notificationStore.getNotificationText(notification) }}</span>
+              <span class="message-time">{{ formatTime(notification.created_at) }}</span>
+            </div>
+          </div>
+          <div v-if="!notification.read" class="unread-dot"></div>
         </div>
-        <div v-if="notification.unread" class="unread-dot"></div>
-      </div>
-      <div v-if="notifications.length === 0" class="empty-state">
-        <span class="empty-icon">🔔</span>
-        <p>暂无通知</p>
-      </div>
+        <div v-if="notificationStore.notifications.length === 0 && !isLoadingNotifications" class="empty-state">
+          <span class="empty-icon">🔔</span>
+          <p>暂无通知</p>
+        </div>
+      </template>
     </div>
 
     <div v-if="activeTab === 'messages'" class="message-list">
-      <div
-        v-for="message in messages"
-        :key="message.id"
-        class="message-item"
-        :class="{ unread: message.unread > 0 }"
-        @click="router.push(`/chat/${message.id}`)"
-      >
-        <div class="message-avatar">
-          <img :src="message.avatar" :alt="message.name" />
-        </div>
-        <div class="message-content">
-          <div class="message-header">
-            <span class="message-author">{{ message.name }}</span>
-            <span class="message-time">{{ message.time }}</span>
+      <div v-if="isLoadingMessages" class="loading-state">
+        <Loader2 :size="24" class="loader" />
+        <span>加载中...</span>
+      </div>
+      <template v-else>
+        <div
+          v-for="conv in conversations"
+          :key="conv.userId"
+          class="message-item"
+          :class="{ unread: conv.unread > 0 }"
+          @click="router.push(`/chat/${conv.userId}`)"
+        >
+          <div class="message-avatar">
+            <img
+              :src="conv.userAvatar || 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20pet%20owner%20avatar&image_size=square'"
+              :alt="conv.userName"
+            />
           </div>
-          <p class="message-text">{{ message.lastMessage }}</p>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author">{{ conv.userName }}</span>
+              <span class="message-time">{{ formatTime(conv.lastTime) }}</span>
+            </div>
+            <p class="message-text">{{ conv.lastMessage }}</p>
+          </div>
+          <div v-if="conv.unread > 0" class="unread-badge">{{ conv.unread }}</div>
         </div>
-        <div v-if="message.unread > 0" class="unread-badge">{{ message.unread }}</div>
-      </div>
-      <div v-if="messages.length === 0" class="empty-state">
-        <span class="empty-icon">💬</span>
-        <p>暂无私信</p>
-      </div>
+        <div v-if="conversations.length === 0 && !isLoadingMessages" class="empty-state">
+          <span class="empty-icon">💬</span>
+          <p>暂无私信</p>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -373,5 +364,26 @@ const back = () => {
 
 .empty-state p {
   font-size: 14px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #A8A29E;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.loader {
+  animation: spin 1s linear infinite;
+  color: #F97316;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
