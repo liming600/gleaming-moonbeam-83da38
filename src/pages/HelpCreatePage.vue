@@ -66,7 +66,6 @@ const handleSubmit = async () => {
     }
 
     if (result.success) {
-      const zoneConfig = zones.find(z => z.key === selectedZone.value)!
       uiStore.showSuccessToast(editPostId.value ? '更新成功' : '发布成功')
       if (editPostId.value) {
         router.push(`/help/${editPostId.value}`)
