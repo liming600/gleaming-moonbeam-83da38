@@ -526,8 +526,6 @@ const tabs = [
 
 @media (max-width: 480px) {
   .paw-btn {
-    width: 100%;
-    justify-content: center;
     margin-top: 4px;
   }
 }

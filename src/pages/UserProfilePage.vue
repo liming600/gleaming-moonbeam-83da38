@@ -345,14 +345,7 @@ onMounted(async () => {
 @media (max-width: 420px) {
   .avatar-section .action-buttons,
   .avatar-section .self-badge {
-    width: 100%;
     margin-top: 8px;
-  }
-
-  .avatar-section .action-buttons .follow-btn,
-  .avatar-section .action-buttons .message-btn {
-    flex: 1;
-    justify-content: center;
   }
 }
 
