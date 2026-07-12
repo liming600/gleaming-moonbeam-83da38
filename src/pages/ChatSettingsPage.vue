@@ -322,13 +322,6 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Danger Zone -->
-      <div class="danger-section">
-        <button class="danger-btn" @click="clearConversation">
-          <Trash2 :size="18" />
-          <span>清空聊天记录</span>
-        </button>
-      </div>
     </template>
   </div>
 </template>
@@ -546,32 +539,6 @@ onMounted(async () => {
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
-}
-
-/* Danger Section */
-.danger-section {
-  margin: 24px 16px;
-}
-
-.danger-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  background: #fff;
-  border: 1.5px solid #EF4444;
-  border-radius: 16px;
-  color: #EF4444;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.danger-btn:active {
-  background: rgba(239, 68, 68, 0.05);
 }
 
 /* Search Bar */
