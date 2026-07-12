@@ -53,12 +53,17 @@ const loadMore = async () => {
 }
 
 const tabs = [
-  { key: 'recommend', label: '推荐' },
-  { key: 'latest', label: '最新' }
+  { key: 'recommend', label: '推荐', badge: 'AI' },
+  { key: 'latest', label: '最新', badge: '' }
 ] as const
 
 const handleSearch = () => {
   router.push('/discover')
+}
+
+const handleTabChange = (tab: 'recommend' | 'latest') => {
+  feedStore.setTab(tab)
+  feedStore.loadPosts(1, true)
 }
 </script>
 
@@ -97,9 +102,10 @@ const handleSearch = () => {
         :key="tab.key"
         class="tab-btn"
         :class="{ active: feedStore.currentTab === tab.key }"
-        @click="feedStore.setTab(tab.key)"
+        @click="handleTabChange(tab.key)"
       >
         {{ tab.label }}
+        <span v-if="tab.badge" class="tab-badge">{{ tab.badge }}</span>
       </button>
     </div>
 
@@ -259,6 +265,15 @@ const handleSearch = () => {
 
 .tab-btn:active {
   transform: scale(0.98);
+}
+
+.tab-badge {
+  margin-left: 4px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .posts-container {

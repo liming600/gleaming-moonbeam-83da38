@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { postService, type Post } from '@/services/postService'
+import { recommendService } from '@/services/recommendService'
 import { dailyQuotes } from '@/mock/posts'
 import { useUserStore } from './userStore'
 import { usePetStore } from './petStore'
@@ -201,7 +202,18 @@ export const useFeedStore = defineStore('feed', () => {
       hasMore.value = true
     }
 
-    const { posts: loadedPosts, error } = await postService.getPosts(page, 20)
+    let loadedPosts: Post[] = []
+    let error: Error | null = null
+
+    if (currentTab.value === 'recommend' && userStore.currentUser) {
+      const recommendResult = await recommendService.getRecommendedPosts(userStore.currentUser.id, page, 20)
+      loadedPosts = recommendResult.posts
+      error = recommendResult.error
+    } else {
+      const postsResult = await postService.getPosts(page, 20)
+      loadedPosts = postsResult.posts
+      error = postsResult.error
+    }
 
     if (error) {
       const result = handleApiError(error, '加载帖子失败')

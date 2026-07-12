@@ -16,6 +16,7 @@ export interface Blogger {
   bio: string
   followers: number
   posts: number
+  following?: boolean
 }
 
 const getAiAvatar = (name: string): string => {
@@ -32,10 +33,7 @@ const getAiAvatar = (name: string): string => {
   return `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(prompt)}&image_size=square`
 }
 
-const getBusinessName = (name: string, index: number): string => {
-  if (name && !name.startsWith('用户_')) {
-    return name
-  }
+const getBusinessName = (_name: string, index: number): string => {
   const businessNames = ['旺旺宠物医院', '萌宠美容沙龙', '宠爱食品店', '汪汪乐园', '爱宠生活馆', '快乐宠物店']
   return businessNames[index % businessNames.length]
 }

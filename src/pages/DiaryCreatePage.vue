@@ -142,7 +142,7 @@ const handleSubmit = async () => {
   isSubmitting.value = false
 
   if (result.success) {
-    uiStore.showSuccessToast('日记发布成功')
+    uiStore.showSuccessToast('发布成功')
     router.push('/')
   } else {
     uiStore.showErrorToast(result.message || '发布失败')
