@@ -450,6 +450,7 @@ const back = () => {
 .mood-list {
   display: flex;
   justify-content: space-between;
+  gap: 4px;
 }
 
 .mood-item {
@@ -457,12 +458,14 @@ const back = () => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 12px 8px;
+  padding: 10px 4px;
   border-radius: 16px;
   background: #FDF6E3;
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex: 1;
+  min-width: 0;
 }
 
 .mood-item.selected {
@@ -471,12 +474,13 @@ const back = () => {
 }
 
 .mood-emoji {
-  font-size: 28px;
+  font-size: clamp(20px, 6vw, 28px);
 }
 
 .mood-label {
-  font-size: 12px;
+  font-size: clamp(10px, 2.5vw, 12px);
   color: #57534E;
+  white-space: nowrap;
 }
 
 .mood-item.selected .mood-label {
@@ -652,5 +656,14 @@ const back = () => {
 .tag-item.selected {
   background: linear-gradient(135deg, #FBBF24, #F59E0B);
   color: #fff;
+}
+
+.hidden-file-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 </style>

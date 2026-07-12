@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, Heart, MessageCircle, Share2, Send, Trash2, Edit3 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
