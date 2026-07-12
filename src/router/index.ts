@@ -146,6 +146,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Chat',
     component: () => import('@/pages/ChatPage.vue'),
     meta: { showTabBar: false, requiresAuth: true }
+  },
+  {
+    path: '/chat/:id/settings',
+    name: 'ChatSettings',
+    component: () => import('@/pages/ChatSettingsPage.vue'),
+    meta: { showTabBar: false, requiresAuth: true }
   }
 ]
 
