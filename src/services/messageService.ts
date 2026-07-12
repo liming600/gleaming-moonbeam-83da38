@@ -174,5 +174,22 @@ export const messageService = {
     } catch (error) {
       return { conversations: [], error: error as Error }
     }
+  },
+
+  async clearConversation(userId1: string, userId2: string): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .or(`(sender_id.eq.${userId1},receiver_id.eq.${userId2}),(sender_id.eq.${userId2},receiver_id.eq.${userId1})`)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
+    }
   }
 }
