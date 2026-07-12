@@ -54,6 +54,12 @@ const jumpToMessage = (_messageId: string) => {
   router.push(`/chat/${otherUserId}`)
 }
 
+const highlightText = (text: string, query: string): string => {
+  if (!query) return text
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<em class="highlight">$1</em>')
+}
+
 const formatSearchTime = (dateString: string): string => {
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
@@ -264,7 +270,7 @@ onMounted(async () => {
           >
             <Clock :size="14" class="search-result-icon" />
             <div class="search-result-content">
-              <p class="search-result-text" v-html="msg.content.replace(new RegExp(`(${searchQuery})`, 'gi'), '<em class=\"highlight\">$1</em>')"></p>
+              <p class="search-result-text" v-html="highlightText(msg.content, searchQuery)"></p>
               <span class="search-result-time">{{ formatSearchTime(msg.created_at) }}</span>
             </div>
           </div>
