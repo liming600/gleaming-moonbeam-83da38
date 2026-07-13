@@ -65,6 +65,27 @@ export const notificationService = {
     }
   },
 
+  async createNotification(userId: string, type: string, relatedId: string | null = null): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          type,
+          related_id: relatedId,
+          read: false
+        })
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      return { success: false, error: error as Error }
+    }
+  },
+
   async getUnreadCount(userId: string): Promise<{ count: number; error: Error | null }> {
     try {
       const { count, error } = await supabase

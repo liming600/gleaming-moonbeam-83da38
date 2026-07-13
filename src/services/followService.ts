@@ -1,4 +1,5 @@
 import { supabase } from '@/supabase/supabaseClient'
+import { notificationService } from './notificationService'
 import type { AuthUser } from './authService'
 
 export interface Follow {
@@ -25,6 +26,9 @@ export const followService = {
       if (error) {
         return { success: false, error }
       }
+
+      // Fire-and-forget: notify the followed user
+      notificationService.createNotification(targetUserId, 'follow', userId)
 
       return { success: true, error: null }
     } catch (error) {

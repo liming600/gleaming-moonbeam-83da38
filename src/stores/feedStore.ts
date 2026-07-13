@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { postService, type Post } from '@/services/postService'
 import { recommendService } from '@/services/recommendService'
+import { notificationService } from '@/services/notificationService'
 import { dailyQuotes } from '@/mock/posts'
 import { useUserStore } from './userStore'
 import { usePetStore } from './petStore'
@@ -85,6 +86,10 @@ export const useFeedStore = defineStore('feed', () => {
         const pet = petStore.pets.find(p => p.id === post.petId)
         if (pet) {
           pet.likes += post.isLiked ? 1 : -1
+          // Notify pet owner (fire-and-forget)
+          if (isLiked && pet.ownerId !== userStore.currentUser.id) {
+            notificationService.createNotification(pet.ownerId, 'like', postId)
+          }
         }
       }
 
@@ -369,6 +374,7 @@ export const useFeedStore = defineStore('feed', () => {
 
   const addComment = wrapLoading(async (postId: string, content: string) => {
     const userStore = useUserStore()
+    const petStore = usePetStore()
     if (!userStore.currentUser) {
       return { success: false, message: '请先登录' }
     }
@@ -384,6 +390,11 @@ export const useFeedStore = defineStore('feed', () => {
       const post = posts.value.find(p => p.id === postId)
       if (post) {
         post.comments += 1
+        // Notify pet owner (fire-and-forget)
+        const pet = petStore.pets.find(p => p.id === post.petId)
+        if (pet && pet.ownerId !== userStore.currentUser.id) {
+          notificationService.createNotification(pet.ownerId, 'comment', postId)
+        }
       }
 
       return { success: true, message: '评论成功', comment }

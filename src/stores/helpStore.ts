@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { helpService, type HelpPost as ApiHelpPost } from '@/services/helpService'
+import { notificationService } from '@/services/notificationService'
 import { zoneConfig, type HelpPost } from '@/mock/helpPosts'
 import { useUserStore } from './userStore'
 import { handleApiError } from '@/utils/errorHandler'
@@ -225,6 +226,10 @@ export const useHelpStore = defineStore('help', () => {
       const post = helpPosts.value.find(p => p.id === postId)
       if (post) {
         post.answers += 1
+        // Notify help post author (fire-and-forget)
+        if (post.authorId && post.authorId !== userStore.currentUser.id) {
+          notificationService.createNotification(post.authorId, 'help_answer', postId)
+        }
       }
 
       return { success: true, message: '回答成功', answer }
