@@ -1,6 +1,6 @@
 ﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Settings, Camera } from 'lucide-vue-next'
+import { Settings, Camera, Bell } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { usePetStore } from '@/stores/petStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -79,7 +79,9 @@ const handleAvatarUpload = async (event: Event) => {
 <template>
   <div class="profile-page">
     <header class="header">
-      <div class="header-placeholder"></div>
+      <button class="bell-btn" @click="router.push('/messages')">
+        <Bell :size="20" />
+      </button>
       <h1 class="header-title">我的主页</h1>
       <button class="settings-btn" @click="router.push('/settings')">
         <Settings :size="20" />
@@ -231,6 +233,7 @@ const handleAvatarUpload = async (event: Event) => {
   color: var(--text-primary);
 }
 
+.bell-btn,
 .settings-btn {
   width: 40px;
   height: 40px;
