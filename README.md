@@ -2,6 +2,20 @@
 
 一个专为宠物爱好者打造的社交平台，让每一位铲屎官都能记录宠物成长、分享养宠经验、寻求互助帮助。
 
+## 📱 界面预览
+
+### 首页动态流
+![首页](docs/screenshots/homepage.png)
+
+### 互助大厅
+![互助大厅](docs/screenshots/helppage.png)
+
+### 发现页
+![发现页](docs/screenshots/discoverpage.png)
+
+### 个人中心
+![个人中心](docs/screenshots/profilepage.png)
+
 ## ✨ 功能特性
 
 ### 📱 核心功能
